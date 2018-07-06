@@ -4,6 +4,7 @@ import radio_beam
 import numpy as np
 import astropy.units as u
 from astrodendro import Dendrogram, pp_catalog
+from sourcecatalog import SourceCatalog
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -18,12 +19,13 @@ class Image:
         Parameters
         ----------
         hdu : `~astropy.io.fits.hdu.image.PrimaryHDU`
-            An astropy FITS HDU object containing the radio image data and header.
+            An astropy FITS HDU object containing the radio image data and 
+            header.
         region_id : str
             An identifier specifying what sky object the radio image contains.
         freq_id : str
-            An identifier specifying the observation frequency (Ex: 226GHz). If not
-            specified, it will be generated from the FITS image header.
+            An identifier specifying the observation frequency (Ex: 226GHz). 
+            If not specified, it will be generated from the FITS image header.
         """
 
         self.hdu = hdu
@@ -37,6 +39,7 @@ class Image:
         self.pixel_scale = (np.abs(self.wcs.pixel_scale_matrix.diagonal()
                             .prod())**0.5 * u.deg)
         self.ppbeam = (self.beam.sr/(self.pixel_scale**2)).decompose().value
+        self.data = self.data/self.ppbeam
         self.get_fits_info()
     
         # Set default dendrogram values
@@ -67,8 +70,8 @@ class Image:
                 
                 # Create a frequency identifier from nu
                 if not self.freq_id:
-                    self.freq_id = '{:.0f}'.format(np.round(self.nu.to(u.GHz)))
-                                           .replace(' ', '')
+                    self.freq_id = ('{:.0f}'.format(np.round(self.nu
+                                            .to(u.GHz))).replace(' ', ''))
                 
                 # Get metadata - need to raise exceptions if data is missing
                 self.metadata = {
@@ -95,7 +98,7 @@ class Image:
             (min_value, min_delta, min_npix) to use when calculating the 
             dendrogram. Defaults will be used if not specified.
         save : bool, optional
-            If enabled, the resulting dendrogram will be saved as a class
+            If enabled, the resulting dendrogram will be saved as an instance
             attribute. Default is True.
             
         Returns
@@ -125,20 +128,17 @@ class Image:
         return dend
     
     
-    def to_cat(self, dendrogram=None, save=True):
+    def to_cat(self, dendrogram=None):
         """
         Returns a position-position catalog of leaves in a dendrogram. If no
-        dendrogram is specified, the dendrogram saved in the class attributes
-        will be used if it exists.
+        dendrogram is specified, the dendrogram saved in the instance 
+        attributes will be used if it exists.
         
         Parameters
         ----------
         dendrogram : ~astrodendro.dendrogram.Dendrogram object, optional
             The dendrogram object to extract sources from. If not specified,
-            the 'dendrogram' class attribute will be used if it exists. 
-        save: bool, optional
-            If enabled, the resulting source catalog will be saved as a class
-            attribute. Default is True.
+            the 'dendrogram' instance attribute will be used if it exists. 
         """
         
         if not dendrogram:
@@ -153,9 +153,9 @@ class Image:
         cat.rename_column('minor_sigma', 'minor_fwhm')
         cat.rename_column('flux', 'dend_flux_{}'.format(self.freq_id))
         
-        if save:
-            self.cat = cat
+        catobj = SourceCatalog(catalog=cat, imageobj=self, masked=True)
+        catobj.__dict__.update(self.__dict__)
         
-        return cat
+        return catobj
         
                                  

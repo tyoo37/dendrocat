@@ -1,28 +1,189 @@
-from astropy.table import Table, MaskedColumn, Column
+from astropy.io import fits
+from astropy import wcs
+import radio_beam
+import numpy as np
 import astropy.units as u
 from astropy import coordinates
 from astropy.nddata.utils import Cutout2D
-import numpy as np
+from astropy.table import Column, Table, MaskedColumn
+from astrodendro import Dendrogram, pp_catalog
 from func import mask, rms
-import regions
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
+import regions
+import warnings
+warnings.filterwarnings('ignore')
 
-class SourceCatalog():
+
+class RadioSource:
     """
-    Contains an astropy.Table object, image attributes, and methods 
-    for source rejection, matching, and flux measurement. 
+    An object to store radio image data.
     """
 
-    def __init__(self, catalog=None, imageobj=None, masked=None):
-                      
-        if imageobj: 
-            self.__dict__.update(imageobj.__dict__)
-        self.catalog = Table(catalog, masked=masked)
+    def __init__(self, hdu, region_id=None, freq_id=None):
+        """
+        Parameters
+        ----------
+        hdu : `~astropy.io.fits.hdu.image.PrimaryHDU`
+            An astropy FITS HDU object containing the radio image data and 
+            header.
+        region_id : str
+            An identifier specifying what sky object the radio image contains.
+        freq_id : str, optional
+            An identifier specifying the observation frequency (Ex: 226GHz). 
+            If not specified, it will be generated from the FITS image header.
+        """
+
+        self.hdu = hdu
+        self.header = hdu[0].header
+        self.data = hdu[0].data.squeeze()
+        self.region_id = region_id
+        self.freq_id = freq_id
         
+        self.wcs = wcs.WCS(self.header).celestial
+        self.beam = radio_beam.Beam.from_fits_header(self.header)
+        self.pixel_scale = (np.abs(self.wcs.pixel_scale_matrix.diagonal()
+                            .prod())**0.5 * u.deg)
+        self.ppbeam = (self.beam.sr/(self.pixel_scale**2)).decompose().value
+        self.data = self.data/self.ppbeam
+        self._get_fits_info()
     
-    def _make_cutouts(self, sidelength, imageobj=None, catalog=None, 
+        # Set default dendrogram values
+        self.default_min_value = 1.7*np.std(self.data)
+        self.default_min_delta = 1.4*self.default_min_value
+        self.default_min_npix = 7
+        
+        # Set other default parameters
+        self.default_threshold = 6.
+        self.default_annulus_width = 1e-5 * u.deg
+        self.default_annulus_padding = 1e-5 * u.deg
+    
+    def _get_fits_info(self):
+        """
+        Get information from FITS header.
+        
+        Supported Telescopes
+        ----------
+        ALMA
+        """
+        
+        try:
+            self.telescope = self.header['TELESCOP']
+            
+            if self.telescope == 'ALMA':
+                
+                # Get the frequency, either stored in CRVAL3 or CRVAL4
+                self.nu = 'UNKNOWN'
+                for i in range(len(self.header['CTYPE*'])):
+                    if self.header['CTYPE*'][i] == 'FREQ':
+                        self.nu = (self.header['CRVAL*'][i] 
+                                   * u.Unit(self.header['CUNIT*'][i]))
+                
+                # Create a frequency identifier from nu
+                if not self.freq_id:
+                    self.freq_id = ('{:.0f}'.format(np.round(self.nu
+                                            .to(u.GHz))).replace(' ', ''))
+                
+                # Get metadata - need to raise exceptions if data is missing
+                self.metadata = {
+                        'data_unit': u.Unit(self.header['BUNIT']),
+                        'spatial_scale': self.pixel_scale,
+                        'beam_major': self.beam.major,
+                        'beam_minor': self.beam.minor,
+                        'wavelength': self.nu,
+                        'velocity_scale': u.km/u.s,
+                        'wcs': self.wcs,
+                            }
+                            
+        except KeyError:
+            self.telescope = 'UNKNOWN'
+    
+    
+    def to_dendrogram(self, min_value=None, min_delta=None, min_npix=None, 
                       save=True):
+        """
+        Calculates a dendrogram for the image.
+        
+        Parameters
+        ----------
+        min_value : float, optional
+        
+        min_delta : float, optional
+        
+        min_npix : float, optional
+            
+        save : bool, optional
+            If enabled, the resulting dendrogram will be saved as an instance
+            attribute. Default is True.
+            
+        Returns
+        ----------
+        ~astrodendro.dendrogram.Dendrogram object
+            A dendrogram object calculated from the radio image.
+        """              
+      
+        if not min_value:
+            min_value = self.default_min_value
+        
+        if not min_delta:
+            min_delta = self.default_min_delta
+            
+        if not min_npix:
+            min_npix = self.default_min_npix
+        
+        dend = Dendrogram.compute(self.data, 
+                                  min_value=min_value, 
+                                  min_delta=min_delta, 
+                                  min_npix=min_npix, 
+                                  wcs=self.wcs, 
+                                  verbose=True)
+        if save:
+            self.dendrogram = dend
+            
+        return dend
+    
+    
+    def to_catalog(self, dendrogram=None, catalog=None, masked=True):
+        """
+        Returns a rsprocess.SourceCatalog object containing a position-position 
+        catalog of leaves in a dendrogram, with image information stored as
+        instance attributes.
+        
+        Parameters
+        ----------
+        dendrogram : ~astrodendro.dendrogram.Dendrogram object, optional
+            The dendrogram object to extract sources from.
+        catalog : ~astropy.table.Table object, optional
+            A position-position catalog, as output by astrodendro.pp_catalog.
+        """
+        
+        if not dendrogram:
+            try:
+                dendrogram = self.dendrogram
+            except AttributeError:
+                dendrogram = self.to_dendrogram()
+                
+        if not catalog:
+            try:
+                cat = self.catalog
+            except AttributeError:
+                cat = pp_catalog(dendrogram.leaves, self.metadata)
+
+        cat['_idx'] = range(len(cat))
+    
+        cat['major_sigma'] = cat['major_sigma']*np.sqrt(8*np.log(2))
+        cat['minor_sigma'] = cat['minor_sigma']*np.sqrt(8*np.log(2))
+        cat.rename_column('major_sigma', 'major_fwhm')
+        cat.rename_column('minor_sigma', 'minor_fwhm')
+        cat.rename_column('flux', 'dend_flux_{}'.format(self.freq_id))
+        cat.add_column(Column(np.zeros(len(cat)), dtype=int), name='rejected')
+        
+        self.catalog = Table(cat, masked=masked)
+        
+        return catalog
+
+
+    def _make_cutouts(self, sidelength, save=True):
         """
         Make a cutout_data of cutout regions around all source centers in the 
         catalog.
@@ -32,12 +193,6 @@ class SourceCatalog():
         sidelength : float
             Side length of the square (in degrees) to cut out of the image for 
             each source.
-        imageobj : rsprocess.image.Image object, optional
-            Image object from which to make the cutouts. If unspecified, image 
-            information from instance attributes will be used.
-        catalog : astropy.table.Table object, optional
-            Source catalog to use for cutout coordinates. If unspecified, 
-            catalog stored in instance attributes will be used.
         save : bool, optional
             If enabled, the cutouts and cutout data will both be saved as 
             instance attributes. Default is True.
@@ -47,20 +202,17 @@ class SourceCatalog():
         List of astropy.nddata.utils.Cutout2D objects, list of cutout data
             
         """
-    
-        if imageobj:
-            beam = imageobj.beam
-            wcs = imageobj.wcs
-            pixel_scale = imageobj.pixel_scale
-            data = imageobj.data
-        else:
-            beam = self.beam
-            wcs = self.wcs
-            pixel_scale = self.pixel_scale
-            data = self.data
+        
+        # remove this, replace names at some point (lazy coding)
+        beam = self.beam
+        wcs = self.wcs
+        pixel_scale = self.pixel_scale
+        data = self.data
             
-        if not catalog:
+        try:
             catalog = self.catalog
+        except AttributeError:
+            catalog = self.to_catalog()
         
         cutouts = []
         cutout_data = []
@@ -125,10 +277,13 @@ class SourceCatalog():
         
         if not width:
             width = self.default_annulus_width
-
-        size = 2.2*(np.max(self.catalog['major_fwhm'])*u.deg 
-                    + padding 
-                    + width)
+        
+        try:
+            catalog = self.catalog
+        except AttributeError:
+            catalog = self.to_catalog()
+        
+        size = 2.2*(np.max(catalog['major_fwhm'])*u.deg + padding + width)
         cutouts, cutout_data = self._make_cutouts(size)
         
         pix_arrays = []
@@ -222,8 +377,10 @@ class SourceCatalog():
             try:
                 pixels_in_background = self.pixels_in_annulus
             except:
-                pixels_in_background = self.get_pixels_annulus(1e-5*u.deg,
-                                                               1e-5*u.deg)
+                pixels_in_background = self.get_pixels_annulus(
+                                          padding=self.default_annulus_padding,
+                                          width=self.default_annulus_width
+                                        )
                                                                
         if not pixels_in_source:
             try:
@@ -317,7 +474,7 @@ class SourceCatalog():
             
         if not threshold:
             threshold = self.default_threshold
-        
+      
         try:
             snrs = self.snr
         except:
@@ -344,14 +501,4 @@ class SourceCatalog():
         
         for idx in accepted_list:
             self.catalog[np.where(catalog['_idx'] == idx)]['rejected'] = 0
-
-
-if __name__ == '__main__':
-    from astropy.io import fits
-    from image import Image
-    
-    filename = '/lustre/aoc/students/bmcclell/w51/W51e2_cont_briggsSC_tclean.image.fits.gz'
-    f = fits.open(filename)
-    i = Image(f)
-    i.to_dendrogram()
-    c = i.to_cat()
+                                 

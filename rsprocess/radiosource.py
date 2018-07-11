@@ -7,11 +7,11 @@ from astropy import coordinates
 from astropy.nddata.utils import Cutout2D
 from astropy.table import Column, Table
 from astrodendro import Dendrogram, pp_catalog
-from func import mask, rms
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import regions
 import warnings
+import utils
 warnings.filterwarnings('ignore')
 
 
@@ -55,8 +55,8 @@ class RadioSource:
         
         # Set other default parameters
         self.default_threshold = 6.
-        self.default_annulus_width = 1e-5 * u.deg
-        self.default_annulus_padding = 1e-5 * u.deg
+        self.annulus_width = 1e-5 * u.deg
+        self.annulus_padding = 1e-5 * u.deg
     
     def _get_fits_info(self):
         """
@@ -103,7 +103,7 @@ class RadioSource:
                       save=True):
         """
         Calculates a dendrogram for the image.
-        
+        Documentation needed
         Parameters
         ----------
         min_value : float, optional
@@ -186,7 +186,7 @@ class RadioSource:
         return Table(cat, masked=True)
 
 
-    def _make_cutouts(self, sidelength, save=True):
+    def _make_cutouts(self, sidelength, catalog=None, save=True):
         """
         Make a cutout_data of cutout regions around all source centers in the 
         catalog.
@@ -211,11 +211,12 @@ class RadioSource:
         wcs = self.wcs
         pixel_scale = self.pixel_scale
         data = self.data
-            
-        try:
-            catalog = self.catalog
-        except AttributeError:
-            catalog = self.to_catalog()
+        
+        if catalog is None:   
+            try:
+                catalog = self.catalog
+            except AttributeError:
+                catalog = self.to_catalog()
         
         cutouts = []
         cutout_data = []
@@ -244,7 +245,8 @@ class RadioSource:
         return cutouts, cutout_data
     
     
-    def get_pixels_annulus(self, padding=None, width=None, save=True):
+    def get_pixels(self, aperture, cutouts=None, 
+                   cutout_data=None, save=True, **kwargs):
         """
         Return a list of pixel arrays, each of which contains the pixels in
         an annulus of constant width and variable radius depending on the 
@@ -252,11 +254,7 @@ class RadioSource:
         
         Parameters
         ----------
-        padding : astropy.units.deg, optional
-            The additional spacing between the major fwhm of the source and
-            the inner radius of the annulus.
-        width : astropy.units.deg, optional
-            The width of the annulus, in degrees.
+        Documentation needed!
         save : bool, optional
             If enabled, the pixel arrays and masks will both be saved as 
             instance attributes. Default is True.
@@ -265,89 +263,36 @@ class RadioSource:
         ----------
         List of pixel arrays
         """
-        
-        if not padding:
-            padding = self.default_annulus_padding
-        
-        if not width:
-            width = self.default_annulus_width
-        
         try:
             catalog = self.catalog
         except AttributeError:
             catalog = self.to_catalog()
         
-        size = 2.2*(np.max(catalog['major_fwhm'])*u.deg + padding + width)
-        cutouts, cutout_data = self._make_cutouts(size)
+        if not cutouts or not cutout_data:
+            try:
+                cutouts = self._cutouts
+                cutout_data = self._cutout_data
+            except AttributeError:
+                size = 2.2*(np.max(catalog['major_fwhm'])*u.deg 
+                            + self.annulus_padding 
+                            + self.annulus_width)
+                cutouts, cutout_data = self._make_cutouts(size)
         
         pix_arrays = []
         masks = []
         
         for i in range(len(cutouts)):
-            center = regions.PixCoord(cutouts[i].center_cutout[0], 
-                                      cutouts[i].center_cutout[1])
-            
-            inner_r = self.catalog[i]['major_fwhm']*u.deg + padding
-            outer_r = inner_r + width
-            
-            innerann_reg = regions.CirclePixelRegion(center, 
-                                                     inner_r/self.pixel_scale)
-            outerann_reg = regions.CirclePixelRegion(center, 
-                                                     outer_r/self.pixel_scale)
-            
-            annulus_mask = (mask(outerann_reg, cutouts[i]) 
-                            - mask(innerann_reg, cutouts[i]))
-            
-            pix_arrays.append(cutouts[i].data[annulus_mask.astype('bool')])
-            masks.append(annulus_mask)
+            this_mask = aperture(self.catalog[i], 
+                                 cutouts[i], 
+                                 self,
+                                 **kwargs)
+                                    
+            pix_arrays.append(cutouts[i].data[this_mask.astype('bool')])
+            masks.append(this_mask)
         
         if save:
-            self.pixels_in_annulus = pix_arrays
-            self.mask_annulus = masks
-        
-        return pix_arrays
-
-
-    def get_pixels_ellipse(self, save=True):
-        """
-        Return a list of pixel arrays, each of which contains the pixels in
-        the source ellipses.
-        
-        Parameters
-        ----------
-        save : bool, optional
-            If enabled, the pixel arrays and masks will both be saved as 
-            instance attributes. Default is True.
-            
-        Returns
-        ----------
-        List of pixel arrays
-        """
-        cutouts = self._cutouts
-        # Currently, get_pixels_annulus needs to be run first to set the size
-        # of the cutouts and save them as an instance attribute. Not ideal.
-        
-        pix_arrays = []
-        masks = []
-        
-        for i in range(len(cutouts)):
-            center = regions.PixCoord(cutouts[i].center_cutout[0], 
-                                      cutouts[i].center_cutout[1])
-            
-            pix_major = self.catalog[i]['major_fwhm']*u.deg / self.pixel_scale
-            pix_minor = self.catalog[i]['minor_fwhm']*u.deg / self.pixel_scale
-            pa = self.catalog[i]['position_angle']*u.deg
-            
-            radius = self.catalog[i]['major_fwhm'] * u.deg
-            reg = regions.EllipsePixelRegion(center, pix_major, pix_minor, 
-                                             angle=pa)                 
-            ellipse_mask = mask(reg, cutouts[i])
-            pix_arrays.append(cutouts[i].data[ellipse_mask.astype('bool')])
-            masks.append(ellipse_mask)
-        
-        if save:
-            self.pixels_in_ellipse = pix_arrays
-            self.mask_ellipse = masks
+            self.__dict__['pixels_{}'.format(aperture.__name__)] = pix_arrays
+            self.__dict__['mask_{}'.format(aperture.__name__)] = masks
         
         return pix_arrays
         
@@ -369,22 +314,20 @@ class RadioSource:
         
         if not pixels_in_background:
             try:
-                pixels_in_background = self.pixels_in_annulus
+                pixels_in_background = self.pixels_annulus
             except:
-                pixels_in_background = self.get_pixels_annulus(
-                                          padding=self.default_annulus_padding,
-                                          width=self.default_annulus_width
-                                        )
+                pixels_in_background = self.get_pixels(utils.annulus)
                                                                
         if not pixels_in_source:
             try:
-                pixels_in_source = self.pixels_in_ellipse
+                pixels_in_source = self.pixels_ellipse
             except AttributeError:
-                pixels_in_source = self.get_pixels_ellipse()
+                pixels_in_source = self.get_pixels(utils.ellipse)
         
         snr_vals = []
         for i in range(len(self.catalog)):
-            snr = np.max(pixels_in_source[i])/rms(pixels_in_background[i])
+            snr = (np.max(pixels_in_source[i])
+                  / utils.rms(pixels_in_background[i]))
             snr_vals.append(snr)
             
         if save:

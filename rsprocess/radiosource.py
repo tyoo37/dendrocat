@@ -5,14 +5,12 @@ import numpy as np
 import astropy.units as u
 from astropy import coordinates
 from astropy.nddata.utils import Cutout2D
-from astropy.table import Column, Table, MaskedColumn, vstack
+from astropy.table import Column, Table
 from astrodendro import Dendrogram, pp_catalog
-from copy import deepcopy
-from func import mask, rms, commonbeam
+from func import mask, rms
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import regions
-from astropy.utils.console import ProgressBar
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -246,21 +244,6 @@ class RadioSource:
         return cutouts, cutout_data
     
     
-    def save_ds9_regions(self, outfile, hide_rejects=True):
-    
-        if hide_rejects:
-            catalog = self.catalog[np.where(self.catalog['rejected'] == 0)]
-        else:
-            catalog = self.catalog
-            
-        with open(outfile, 'w') as fh:
-            fh.write("icrs\n")
-            for row in catalog:
-                fh.write("ellipse({x_cen}, {y_cen}, {major_fwhm}, " \
-                         "{minor_fwhm}, {position_angle}) # text={{{_idx}}}\n"
-                         .format(**dict(zip(row.colnames, row))))
-    
-    
     def get_pixels_annulus(self, padding=None, width=None, save=True):
         """
         Return a list of pixel arrays, each of which contains the pixels in
@@ -462,7 +445,7 @@ class RadioSource:
 
             for j in range(len(masks[i])):
                 plt.imshow(masks[i][j], origin='lower', cmap='gray', 
-                           alpha=0.25)
+                           alpha=0.15)
                 
             plt.text(0, 0, '{}  SN {:.1f}'.format(names[i], snr_vals[i]), 
                      fontsize=7, color='w')
@@ -512,143 +495,5 @@ class RadioSource:
         
         for idx in accepted_list:
             self.catalog[np.where(self.catalog['_idx'] == idx)]['rejected'] = 0
-    
-    
-    def match(self, other, verbose=True):
-        """
-        Find sources that match up between two radio images. 
-        
-        Parameters
-        ----------
-        other : rsprocess.RadioSource object or rsprocess.MasterCatalog object
-            The catalog with which to compare radio sources.
-            
-        Returns
-        ----------
-        astropy.table.Table object
-        """
-      
-        all_colnames = set(self.catalog.colnames + other.catalog.colnames)
-        stack = vstack([self.catalog, other.catalog])
-        
-        all_colnames.add('_idy')
-        stack.add_column(Column(range(len(stack)), name='_idy'))
-        stack = stack[sorted(list(all_colnames))]
-        
-        rejected = np.where(stack['rejected'] == 1)[0]
-        
-        if verbose:
-            print('Combining matches')
-            pb = ProgressBar(len(stack) - len(rejected))
-        
-        i = 0
-        while True:
-            
-            if i == len(stack) - 1:
-                break
-            
-            if i in rejected:
-                i += 1
-                continue
-            
-            teststar = stack[i]
-            delta_p = vstack([stack[:i], stack[i+1:]]
-                             )['_idx', '_idy', 'x_cen', 'y_cen']
-            delta_p['x_cen'] = np.abs(delta_p['x_cen'] - teststar['x_cen'])                
-            delta_p['y_cen'] = np.abs(delta_p['y_cen'] - teststar['y_cen'])
-            delta_p.sort('x_cen')
-            
-            threshold = 1e-5
-            found_match = False
-            
-            dist_col = MaskedColumn(length=len(delta_p), name='dist', 
-                                    mask=True)
-            
-            for j in range(10):
-                dist_col[j] = np.sqrt(delta_p[j]['x_cen']**2. 
-                                      + delta_p[j]['y_cen']**2)            
-                if dist_col[j] <= threshold:
-                    found_match = True
-                    
-            delta_p.add_column(dist_col)
-            delta_p.sort('dist')
-            
-            if found_match:
-                match_index = np.where(stack['_idy'] == delta_p[0]['_idy'])
-                match = deepcopy(stack[match_index])
-                stack.remove_row(match_index[0][0])
-                
-                # Find the common bounding ellipse
-                new_x_cen = np.average([match['x_cen'], teststar['x_cen']])
-                new_y_cen = np.average([match['y_cen'], teststar['y_cen']])
-                
-                # Find new ellipse properties
-                new_maj, new_min, new_pa = commonbeam(
-                                             float(match['major_fwhm']), 
-                                             float(match['minor_fwhm']), 
-                                             float(match['position_angle']),
-                                             float(teststar['major_fwhm']),
-                                             float(teststar['minor_fwhm']),
-                                             float(teststar['position_angle'])
-                                             )
-                
-                # Replace properties of test star
-                stack[i]['x_cen'] = new_x_cen       
-                stack[i]['y_cen'] = new_y_cen
-                stack[i]['major_fwhm'] = new_maj.value
-                stack[i]['minor_fwhm'] = new_min.value
-                stack[i]['position_angle'] = new_pa.value
-        
-                # Replace masked data with available values from the match
-                for k, masked in enumerate(stack.mask[i]):
-                    colname = stack.colnames[k]
-                    if masked:
-                        stack[i][colname] = match[colname]
-            i += 1
-            if verbose:
-                pb.update()
-        
-        # Fill masked detection column fields with 'False'
-        for colname in stack.colnames:
-            if colname.split('_')[0] == 'detected':
-                stack[colname].fill_value = 0
-        
-        stack.remove_column('_idy')
-        return MasterCatalog(self, other, catalog=stack)
-        
 
-class MasterCatalog:
-    """
-    An object to store combined data from two or more RadioSource objects.
-    """
-    
-    def __init__(self, *args, catalog=None):
-        """
-        Create a new master catalog object.
-        
-        Parameters
-        ----------
-        catalog : astropy.table.Table object
-            The master table from which to build the catalog object.
-        *args : radiosource.RadioSource objects
-            RadioSource objects from which the master table was built.
-        """
-        if catalog is not None:
-            self.catalog = catalog
-        
-        obj_prefix = 'radiosource_'
-        
-        for obj in args:
-        
-            if isinstance(obj, MasterCatalog):
-                for key in mc.__dict__.keys():
-                    if key.split('_')[0] == obj_prefix:
-                        self.__dict__[key] = obj[key]
-            else:        
-                self.__dict__[obj_prefix+obj.freq_id)] = obj
-                
-            # Now has support for n matches!
-            
-    
-    
         

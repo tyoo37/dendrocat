@@ -11,9 +11,11 @@ import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import regions
 import warnings
-import utils
 warnings.filterwarnings('ignore')
 
+if __package__ == '':
+    __package__ = 'dendrocat'
+from .utils import annulus, ellipse, rms
 
 class RadioSource:
     """
@@ -315,18 +317,18 @@ class RadioSource:
             try:
                 pixels_in_background = self.pixels_annulus
             except:
-                pixels_in_background = self.get_pixels(utils.annulus)
+                pixels_in_background = self.get_pixels(annulus)
                                                                
         if not pixels_in_source:
             try:
                 pixels_in_source = self.pixels_ellipse
             except AttributeError:
-                pixels_in_source = self.get_pixels(utils.ellipse)
+                pixels_in_source = self.get_pixels(ellipse)
         
         snr_vals = []
         for i in range(len(self.catalog)):
             snr = (np.max(pixels_in_source[i])
-                  / utils.rms(pixels_in_background[i]))
+                  / rms(pixels_in_background[i]))
             snr_vals.append(snr)
             
         if save:

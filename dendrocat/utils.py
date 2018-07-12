@@ -4,10 +4,8 @@ import astropy.units as u
 from astropy.table import MaskedColumn, vstack
 from astropy.utils.console import ProgressBar
 from copy import deepcopy
-import mastercatalog
 import regions
 import warnings
-import pickle
 
 def mask(reg, cutout):
     n = cutout.shape[0]
@@ -84,14 +82,7 @@ def save_regions(catalog, outfile, hide_rejects=True):
                      "{minor_fwhm}, {position_angle}) # text={{{_idx}}}\n"
                      .format(**dict(zip(row.colnames, row))))
 
-def match(*args, verbose=True):
-    """
-    Documentation needed
-    """
-    current_arg = args[0]
-    for i in range(len(args)-1):
-        current_arg = _matcher(current_arg, args[i+1])
-    return current_arg
+
 
 def _matcher(obj1, obj2, verbose=True):
     """
@@ -106,7 +97,7 @@ def _matcher(obj1, obj2, verbose=True):
         
     Returns
     ----------
-    rsprocess.MasterCatalog object
+    astropy.table.Table object
     """
   
     all_colnames = set(obj1.catalog.colnames + obj2.catalog.colnames)
@@ -195,7 +186,7 @@ def _matcher(obj1, obj2, verbose=True):
             stack[colname].fill_value = 0
     
     stack.remove_column('_idy')
-    return mastercatalog.MasterCatalog(obj1, obj2, catalog=stack)
+    return stack
     
     
 # APERTURE MASK FUNCTIONS

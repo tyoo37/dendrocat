@@ -1,8 +1,22 @@
-import radiosource
 from astropy.table import MaskedColumn
 import numpy as np
-import utils
 import astropy.units as u
+
+if __package__ == '':
+    __package__ = 'dendrocat'
+from .utils import rms
+from .radiosource import RadioSource
+
+
+def match(*args, verbose=True):
+    """
+    Documentation needed
+    """
+    current_arg = args[0]
+    for i in range(len(args)-1):
+        current_arg = MasterCatalog(current_arg, args[i+1], 
+                                    catalog=_matcher(current_arg, args[i+1]))
+    return current_arg
 
 
 class MasterCatalog:
@@ -57,7 +71,7 @@ class MasterCatalog:
         
         rs_objects = []
         for i, obj in enumerate(self.__dict__.values()):
-            if isinstance(obj, radiosource.RadioSource):
+            if isinstance(obj, RadioSource):
                 rs_objects.append(obj)
                 
         aperture_npix_col = MaskedColumn(length=len(catalog),
@@ -103,7 +117,7 @@ class MasterCatalog:
                                             
             rms_data = np.zeros(len(pix_in_aperture))
             for i in range(len(pix_in_aperture)):
-                rms_data[i] = utils.rms(pix_in_aperture[i])                           
+                rms_data[i] = rms(pix_in_aperture[i])                           
             aperture_rms_col = MaskedColumn(data=rms_data,
                                             name=names[2],
                                             mask=True)

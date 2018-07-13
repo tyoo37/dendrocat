@@ -1,6 +1,11 @@
 import regions
 import astropy.units as u
 
+if __package__ == '':
+    __package__ = 'dendrocat'
+from .utils import mask
+
+
 def ellipse(source, cutout, obj):
 
     center = regions.PixCoord(cutout.center_cutout[0], cutout.center_cutout[1])

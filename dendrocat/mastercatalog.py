@@ -75,13 +75,8 @@ class MasterCatalog:
                 rs_objects.append(obj)
         
         for i, rs_obj in enumerate(rs_objects):
-        
-            size = 2.2*(np.max(catalog['major_fwhm'])*u.deg 
-                        + rs_obj.annulus_padding 
-                        + rs_obj.annulus_width)
             
-            cutouts, cutout_data = rs_obj._make_cutouts(size, 
-                                                        catalog=catalog, 
+            cutouts, cutout_data = rs_obj._make_cutouts(catalog=catalog, 
                                                         save=False)
                                                                                     
             pix_in_aperture = rs_obj.get_pixels(
@@ -90,7 +85,7 @@ class MasterCatalog:
                                                 cutouts=cutouts,
                                                 cutout_data=cutout_data,
                                                 **kwargs
-                                                )
+                                                )[0]
             
             names = [
                 aperture.__name__+'_peak_'+rs_obj.freq_id,

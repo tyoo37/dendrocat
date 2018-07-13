@@ -15,7 +15,8 @@ warnings.filterwarnings('ignore')
 
 if __package__ == '':
     __package__ = 'dendrocat'
-from .utils import annulus, ellipse, rms
+from .aperture import annulus, ellipse
+from .utils import rms
 
 class RadioSource:
     """
@@ -96,9 +97,17 @@ class RadioSource:
                         'velocity_scale': u.km/u.s,
                         'wcs': self.wcs,
                             }
-                            
+            else:
+                print('FITS info collection not currently supported for ' \
+                      '{}. Please manually set the following instance' \
+                      ' attributes:'.format(self.telescope))
+                print(' nu\n', 'freq_id\n', 'metadata\n')
+                
         except KeyError:
             self.telescope = 'UNKNOWN'
+            print('Telescope not identified. Please manually set the ' \
+                  'following instance attributes:')
+            print('telescope\n', 'nu\n', 'freq_id\n', 'metadata\n')
     
     
     def to_dendrogram(self, min_value=None, min_delta=None, min_npix=None, 
@@ -187,16 +196,13 @@ class RadioSource:
         return Table(cat, masked=True)
 
 
-    def _make_cutouts(self, size, catalog=None, save=True):
+    def _make_cutouts(self, catalog=None, data=None, save=True):
         """
         Make a cutout_data of cutout regions around all source centers in the 
         catalog.
         
         Parameters
         ----------
-        size : float
-            Side length of the square (in degrees) to cut out of the image for 
-            each source.
         save : bool, optional
             If enabled, the cutouts and cutout data will both be saved as 
             instance attributes. Default is True.
@@ -212,7 +218,14 @@ class RadioSource:
                 catalog = self.catalog
             except AttributeError:
                 catalog = self.to_catalog()
-        
+                
+        if data is None:
+            data = self.data
+
+        size = 2.2*(np.max(catalog['major_fwhm'])*u.deg 
+            + self.annulus_padding 
+            + self.annulus_width)
+
         cutouts = []
         cutout_data = []
         
@@ -228,7 +241,7 @@ class RadioSource:
             pixel_position = np.array(position.to_pixel(self.wcs))
             
             try:
-                cutout = Cutout2D(self.data, 
+                cutout = Cutout2D(data, 
                                   position, 
                                   size, 
                                   self.wcs, 
@@ -253,8 +266,8 @@ class RadioSource:
         return cutouts, cutout_data
     
     
-    def get_pixels(self, aperture, catalog=None, cutouts=None, 
-                   cutout_data=None, save=True, **kwargs):
+    def get_pixels(self, aperture, catalog=None, data=None, cutouts=None, 
+                   save=True, **kwargs):
         """
         Return a list of pixel arrays, each of which contains the pixels in
         an annulus of constant width and variable radius depending on the 
@@ -269,30 +282,29 @@ class RadioSource:
             
         Returns
         ----------
-        List of pixel arrays
+        List of pixel arrays, list of masks
         """
         if catalog is None:
             try:
                 catalog = self.catalog
             except AttributeError:
                 catalog = self.to_catalog()
+                
+        if data is None:
+            data = self.data
         
-        if cutouts is None or cutout_data is None:
-            try:
-                cutouts = self._cutouts
-                cutout_data = self._cutout_data
-            except AttributeError:
-                size = 2.2*(np.max(catalog['major_fwhm'])*u.deg 
-                            + self.annulus_padding 
-                            + self.annulus_width)
-                cutouts, cutout_data = self._make_cutouts(size)
+        if cutouts is None:
+            size = 2.2*(np.max(catalog['major_fwhm'])*u.deg 
+                        + self.annulus_padding 
+                        + self.annulus_width)
+            cutouts, cutout_data = self._make_cutouts(catalog=catalog,
+                                                      data=data)
         
         pix_arrays = []
         masks = []
         
         for i in range(len(cutouts)):
         
-            
             if isinstance(cutouts[i], Cutout2D):
                 pass
             elif np.isnan(cutouts[i]):
@@ -314,12 +326,11 @@ class RadioSource:
             self.__dict__['mask_{}'
                           .format(aperture.__name__)] = np.array(masks)
         
-        return np.array(pix_arrays)
+        return np.array(pix_arrays), np.array(masks)
         
     
-    def get_snr(self, pixels_in_source=None, pixels_in_background=None, 
-                peak=True, save=True):
-        # This broke somehow
+    def get_snr(self, source=None, background=None, catalog=None, data=None, 
+                cutouts=None, cutout_data=None, peak=True, save=True):
         """
         Return the SNR of all sources in the catalog.
         
@@ -332,67 +343,133 @@ class RadioSource:
             and as an instance attribute. Default is True.
         """
         
-        if not pixels_in_background:
-            try:
-                pixels_in_background = self.pixels_annulus
-            except:
-                pixels_in_background = self.get_pixels(annulus)
-                                                               
-        if not pixels_in_source:
-            try:
-                pixels_in_source = self.pixels_ellipse
-            except AttributeError:
-                pixels_in_source = self.get_pixels(ellipse)
+        if catalog is None:
+                try:
+                    catalog = self.catalog
+                except AttributeError:
+                    catalog = self.to_catalog()
+        
+        # Cascade check
+        if source is None or background is None:    
+                    
+            if data is None:
+                data = self.data
+
+            if cutouts is None or cutout_data is None:
+                size = 2.2*(np.max(catalog['major_fwhm'])*u.deg 
+                                    + self.annulus_padding 
+                                    + self.annulus_width)
+                cutouts, cutout_data = self._make_cutouts(catalog=catalog, 
+                                                          data=data)
+        
+            background = self.get_pixels(annulus, 
+                                         catalog=catalog,
+                                         data=data,
+                                         cutouts=cutouts)[0]
+                                          
+            source = self.get_pixels(ellipse, 
+                                     catalog=catalog,
+                                     data=data,
+                                     cutouts=cutouts)[0]
         
         snr_vals = []
-        for i in range(len(self.catalog)):
+        for i in range(len(catalog)):
             try:
-                snr = (np.max(pixels_in_source[i])
-                       / rms(pixels_in_background[i]))
+                snr = np.max(source[i]) / rms(background[i])
             except ZeroDivisionError:
                 snr = 0.0
             snr_vals.append(snr)
             
         if save:
             self.snr = np.array(snr_vals)
-            self.catalog.add_column(Column(snr_vals), name='snr_'+self.freq_id)
+            try:
+                catalog.remove_column('snr_'+self.freq_id)
+            except KeyError:
+                pass
+            catalog.add_column(Column(snr_vals), name='snr_'+self.freq_id)
             
         return np.array(snr_vals)
     
     
-    def plot_grid(self, cutout_data=None, masks=None, snr_vals=None,
-                  skip=False):
+    def plot_grid(self, catalog=None, data=None, cutouts=None, cutout_data=None,
+                  apertures=None, skip=True):
         """
-        Plot a grid of sources with aperture mask overlays. Rejected sources
-        are shown in gray.
+        Plot sources in a grid.
         
         Parameters
         ----------
-        Documentation needed
+        catalog : astropy.table.Table object, optional
+            The catalog used to extract source positions.
+        data : numpy.ndarray, optional
+            The image data displayed and used to make cutouts.
+        cutouts : list of astropy.nddata.utils.Cutout2D objects, optional
+            Image cutout regions to save computation time, if they have already
+            been calculated.
+        cutout_data : list of numpy.ndarrays, optional
+            Image cutout region data to save on computation time, if it has already
+            been calculated.
+        apertures : list of dendrocat.aperture functions, optional
+            Apertures to plot over the image cutouts.
+        skip : bool, optional
+            If enabled, don't plot rejected sources. Default is True.
         """
         
-        if not snr_vals:
+        if catalog is None:
             try:
-                snr_vals = self.snr
+                catalog = self.catalog
             except AttributeError:
-                snr_vals = self.get_snr()
-                
-        if not cutout_data:
-            cutout_data = self._cutout_data
+                catalog = self.to_catalog()
         
-        if not masks:
-            masks = np.array(list(zip(self.mask_ellipse, self.mask_annulus)))
-            
-        names = np.array(self.catalog['_idx'])
-        rejected = np.array(self.catalog['rejected'])
+        if data is None:
+            data = self.data
+        
+        # Make sure ellipse and annulus apertures are used
+        if apertures is None:
+            apertures = [ellipse, annulus]
+        else:
+            apertures = list(set(apertures+[ellipse, annulus]))
+        
+        # Get cutouts
+        if cutouts is None or cutout_data is None:
+            cutouts, cutout_data = self._make_cutouts(catalog=catalog, data=data)
+        
+        # Get pixels and masks in each aperture
+        ap_names = []
+        pixels = []
+        masks = []
+        
+        for aperture in apertures:
+            some_pixels, a_mask = self.get_pixels(aperture,
+                                                  catalog=catalog,
+                                                  data=data,
+                                                  cutouts=cutouts)
+            ap_names.append(aperture.__name__)
+            pixels.append(some_pixels)
+            masks.append(a_mask)
+        
+        # Find SNR
+        ellipse_pix = pixels[ap_names.index('ellipse')]
+        annulus_pix = pixels[ap_names.index('annulus')]
+        
+        snr_vals = self.get_snr(source=ellipse_pix, background=annulus_pix,
+                                catalog=catalog)
+        names = np.array(catalog['_idx'])
+        rejected = np.array(catalog['rejected'])
         
         if skip:
-            accepted_indices = np.where(self.catalog['rejected'] == 0)[0]
+            accepted_indices = np.where(catalog['rejected'] == 0)[0]
             snr_vals = snr_vals[accepted_indices]
             cutout_data = cutout_data[accepted_indices]
             masks = masks[accepted_indices]
             names = names[accepted_indices]
             rejected = rejected[accepted_indices]
+            
+        not_nan = ~np.isnan(cutout_data).any(axis=1).any(axis=1)
+        snr_vals = snr_vals[not_nan]
+        cutout_data = cutout_data[not_nan]
+        masks = masks[not_nan]
+        names = names[not_nan]
+        rejected = rejected[not_nan]
         
         n_images = len(cutout_data)
         xplots = int(np.around(np.sqrt(n_images)))
@@ -401,6 +478,7 @@ class RadioSource:
         plt.figure(figsize=(9.5, 10))
         
         for i in range(n_images):
+            
             image = cutout_data[i]
             plt.subplot(gs1[i])
             
@@ -437,7 +515,7 @@ class RadioSource:
       
         try:
             snrs = self.snr
-        except:
+        except AttributeError:
             snrs = self.get_snr()
             
         try:

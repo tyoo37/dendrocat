@@ -4,7 +4,7 @@ import radio_beam
 import numpy as np
 import astropy.units as u
 from astropy import coordinates
-from astropy.nddata.utils import Cutout2D
+from astropy.nddata.utils import Cutout2D, NoOverlapError
 from astropy.table import Column, Table
 from astrodendro import Dendrogram, pp_catalog
 import matplotlib.gridspec as gs
@@ -187,14 +187,14 @@ class RadioSource:
         return Table(cat, masked=True)
 
 
-    def _make_cutouts(self, sidelength, catalog=None, save=True):
+    def _make_cutouts(self, size, catalog=None, save=True):
         """
         Make a cutout_data of cutout regions around all source centers in the 
         catalog.
         
         Parameters
         ----------
-        sidelength : float
+        size : float
             Side length of the square (in degrees) to cut out of the image for 
             each source.
         save : bool, optional
@@ -206,12 +206,6 @@ class RadioSource:
         List of astropy.nddata.utils.Cutout2D objects, list of cutout data
             
         """
-        
-        # remove this, replace names at some point (lazy coding)
-        beam = self.beam
-        wcs = self.wcs
-        pixel_scale = self.pixel_scale
-        data = self.data
         
         if catalog is None:   
             try:
@@ -226,14 +220,27 @@ class RadioSource:
             x_cen = catalog['x_cen'][i] * u.deg
             y_cen = catalog['y_cen'][i] * u.deg
             
-            position = coordinates.SkyCoord(x_cen, y_cen, frame='icrs',
+            position = coordinates.SkyCoord(x_cen, 
+                                            y_cen, 
+                                            frame='icrs',
                                             unit=(u.deg, u.deg))
-            pixel_position = np.array(position.to_pixel(wcs))
+                                            
+            pixel_position = np.array(position.to_pixel(self.wcs))
             
-            cutout = Cutout2D(data, position, sidelength, wcs, mode='partial')
-            cutouts.append(cutout)
-            cutout_data.append(cutout.data)
-            
+            try:
+                cutout = Cutout2D(self.data, 
+                                  position, 
+                                  size, 
+                                  self.wcs, 
+                                  mode='partial')
+                cutouts.append(cutout)
+                cutout_data.append(cutout.data)
+                
+            except NoOverlapError:
+                catalog['rejected'][i] = 1
+                cutouts.append(float('nan'))
+                cutout_data.append(float('nan'))
+        
         cutouts = np.array(cutouts)
         cutout_data = np.array(cutout_data)
         
@@ -246,7 +253,7 @@ class RadioSource:
         return cutouts, cutout_data
     
     
-    def get_pixels(self, aperture, cutouts=None, 
+    def get_pixels(self, aperture, catalog=None, cutouts=None, 
                    cutout_data=None, save=True, **kwargs):
         """
         Return a list of pixel arrays, each of which contains the pixels in
@@ -264,10 +271,11 @@ class RadioSource:
         ----------
         List of pixel arrays
         """
-        try:
-            catalog = self.catalog
-        except AttributeError:
-            catalog = self.to_catalog()
+        if catalog is None:
+            try:
+                catalog = self.catalog
+            except AttributeError:
+                catalog = self.to_catalog()
         
         if cutouts is None or cutout_data is None:
             try:
@@ -283,7 +291,16 @@ class RadioSource:
         masks = []
         
         for i in range(len(cutouts)):
-            this_mask = aperture(self.catalog[i], 
+        
+            
+            if isinstance(cutouts[i], Cutout2D):
+                pass
+            elif np.isnan(cutouts[i]):
+                pix_arrays.append(float('nan'))
+                masks.append(float('nan'))
+                continue
+            
+            this_mask = aperture(catalog[i], 
                                  cutouts[i], 
                                  self,
                                  **kwargs)
@@ -292,15 +309,17 @@ class RadioSource:
             masks.append(this_mask)
         
         if save:
-            self.__dict__['pixels_{}'.format(aperture.__name__)] = pix_arrays
-            self.__dict__['mask_{}'.format(aperture.__name__)] = masks
+            self.__dict__['pixels_{}'
+                          .format(aperture.__name__)] = np.array(pix_arrays)
+            self.__dict__['mask_{}'
+                          .format(aperture.__name__)] = np.array(masks)
         
-        return pix_arrays
+        return np.array(pix_arrays)
         
     
     def get_snr(self, pixels_in_source=None, pixels_in_background=None, 
                 peak=True, save=True):
-        
+        # This broke somehow
         """
         Return the SNR of all sources in the catalog.
         
@@ -327,8 +346,11 @@ class RadioSource:
         
         snr_vals = []
         for i in range(len(self.catalog)):
-            snr = (np.max(pixels_in_source[i])
-                  / rms(pixels_in_background[i]))
+            try:
+                snr = (np.max(pixels_in_source[i])
+                       / rms(pixels_in_background[i]))
+            except ZeroDivisionError:
+                snr = 0.0
             snr_vals.append(snr)
             
         if save:

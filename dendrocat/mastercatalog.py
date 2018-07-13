@@ -4,7 +4,7 @@ import astropy.units as u
 
 if __package__ == '':
     __package__ = 'dendrocat'
-from .utils import rms
+from .utils import rms, _matcher
 from .radiosource import RadioSource
 
 
@@ -73,66 +73,78 @@ class MasterCatalog:
         for i, obj in enumerate(self.__dict__.values()):
             if isinstance(obj, RadioSource):
                 rs_objects.append(obj)
-                
-        aperture_npix_col = MaskedColumn(length=len(catalog),
-                                         name=aperture.__name__,
-                                         mask=True)
         
         for i, rs_obj in enumerate(rs_objects):
         
             size = 2.2*(np.max(catalog['major_fwhm'])*u.deg 
                         + rs_obj.annulus_padding 
                         + rs_obj.annulus_width)
-                        
+            
             cutouts, cutout_data = rs_obj._make_cutouts(size, 
                                                         catalog=catalog, 
                                                         save=False)
-        
-            try:
-                pix_in_aperture = rs_obj.__dict__['pix_'+aperture.__name__]
-            except KeyError:                              
-                pix_in_aperture = rs_obj.get_pixels(
-                                                    aperture,
-                                                    cutouts=cutouts,
-                                                    cutout_data=cutout_data,
-                                                    **kwargs
-                                                    )
+                                                                                    
+            pix_in_aperture = rs_obj.get_pixels(
+                                                aperture,
+                                                catalog=catalog,
+                                                cutouts=cutouts,
+                                                cutout_data=cutout_data,
+                                                **kwargs
+                                                )
             
             names = [
                 aperture.__name__+'_peak_'+rs_obj.freq_id,
                 aperture.__name__+'_sum_'+rs_obj.freq_id,
                 aperture.__name__+'_rms_'+rs_obj.freq_id,
-                aperture.__name__+'_median_'+rs_obj.freq_id
+                aperture.__name__+'_median_'+rs_obj.freq_id,
+                aperture.__name__+'_npix_'+rs_obj.freq_id
             ]
             
-            peak_data = np.amax(np.amax(pix_in_aperture, axis=1), axis=1)
+            peak_data = np.zeros(len(pix_in_aperture))
+            for j in range(len(pix_in_aperture)):
+                peak_data[j] = np.max(pix_in_aperture[j])
             aperture_peak_col = MaskedColumn(data=peak_data,
-                                             name=names[0],
+                                             name=names[0])
             
-                                             mask=True)
-            sum_data = np.sum(np.sum(pix_in_aperture, axis=1), axis=1)                         
+            sum_data = np.zeros(len(pix_in_aperture))
+            for j in range(len(pix_in_aperture)):
+                sum_data[j] = np.sum(pix_in_aperture[j])                    
             aperture_sum_col = MaskedColumn(data=sum_data,
-                                            name=names[1],
-                                            mask=True)                  
+                                            name=names[1])                  
                                             
             rms_data = np.zeros(len(pix_in_aperture))
-            for i in range(len(pix_in_aperture)):
-                rms_data[i] = rms(pix_in_aperture[i])                           
+            for j in range(len(pix_in_aperture)):
+                rms_data[j] = rms(pix_in_aperture[j])                           
             aperture_rms_col = MaskedColumn(data=rms_data,
-                                            name=names[2],
-                                            mask=True)
+                                            name=names[2])
             
-            median_data = np.median(np.median(pix_in_aperture, axis=1), axis-1)                   
+            median_data = np.zeros(len(pix_in_aperture))
+            for j in range(len(pix_in_aperture)):
+                median_data[j] = np.median(pix_in_aperture[j])                   
             aperture_median_col = MaskedColumn(data=median_data,
-                                               name=names[3],
-                                               mask=True)
+                                               name=names[3])
             
+            npix_data = np.zeros(len(pix_in_aperture))
+            for j in range(len(pix_in_aperture)):
+                if np.isnan(pix_in_aperture[j]).any():
+                    npix_data[j] = None
+                else:
+                    npix_data[j] = len(pix_in_aperture[j])
+                aperture_npix_col = MaskedColumn(data=npix_data,
+                                                 name=names[4])
+                
             self.catalog.add_columns([
                 aperture_peak_col,
                 aperture_sum_col,
                 aperture_rms_col,
-                aperture_median_col
+                aperture_median_col,
+                aperture_npix_col
             ])
+            
+            # Mask NaN values        
+            for col in self.catalog.colnames:
+                isnan = np.argwhere(np.isnan(list(self.catalog[col])))
+                self.catalog.mask[col][isnan] = True
             
             
             

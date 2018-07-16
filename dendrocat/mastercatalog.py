@@ -92,11 +92,11 @@ class MasterCatalog:
                                                 )[0]
             
             names = [
-                aperture.__name__+'_peak_'+rs_obj.freq_id,
-                aperture.__name__+'_sum_'+rs_obj.freq_id,
-                aperture.__name__+'_rms_'+rs_obj.freq_id,
-                aperture.__name__+'_median_'+rs_obj.freq_id,
-                aperture.__name__+'_npix_'+rs_obj.freq_id
+                rs_obj.freq_id+'_'+aperture.__name__+'_peak',
+                rs_obj.freq_id+'_'+aperture.__name__+'_sum',
+                rs_obj.freq_id+'_'+aperture.__name__+'_rms',
+                rs_obj.freq_id+'_'+aperture.__name__+'_median',
+                rs_obj.freq_id+'_'+aperture.__name__+'_npix'
             ]
             
             peak_data = np.zeros(len(pix_in_aperture))

@@ -23,3 +23,4 @@ if not _ASTROPY_SETUP_:
     from .mastercatalog import MasterCatalog, match
     from .radiosource import RadioSource
     from .aperture import ellipse, annulus, circle
+    from .ffplot import specindex, ffplot

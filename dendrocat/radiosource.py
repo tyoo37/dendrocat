@@ -48,23 +48,22 @@ class RadioSource:
         self.pixel_scale = (np.abs(self.wcs.pixel_scale_matrix.diagonal()
                             .prod())**0.5 * u.deg)
         self.ppbeam = (self.beam.sr/(self.pixel_scale**2)).decompose().value
-        self.data = self.data/self.ppbeam
         self._get_fits_info()
     
         # Set default dendrogram values
-        self.default_min_value = 1.7*np.nanstd(self.data)
-        self.default_min_delta = 1.4*self.default_min_value
-        self.default_min_npix = 7
+        self.min_value = 1.7*np.nanstd(self.data)
+        self.min_delta = 1.4*self.min_value
+        self.min_npix = 7
         
         # Set other default parameters
-        self.default_threshold = 6.
-        self.annulus_width = 1e-5 * u.deg
-        self.annulus_padding = 1e-5 * u.deg
+        self.threshold = 6.
+        self.annulus_width = 12 * self.pixel_scale
+        self.annulus_padding = 12 * self.pixel_scale
     
         self.properties = {
-            'default_min_value':self.default_min_value,
-            'default_min_delta':self.default_min_delta,
-            'default_min_npix':self.default_min_npix,
+            'min_value':self.min_value,
+            'min_delta':self.min_delta,
+            'min_npix':self.min_npix,
             'annulus_width':self.annulus_width,
             'annulus_padding':self.annulus_padding
                             }
@@ -144,13 +143,13 @@ class RadioSource:
         """              
       
         if not min_value:
-            min_value = self.default_min_value
+            min_value = self.min_value
         
         if not min_delta:
-            min_delta = self.default_min_delta
+            min_delta = self.min_delta
             
         if not min_npix:
-            min_npix = self.default_min_npix
+            min_npix = self.min_npix
         
         dend = Dendrogram.compute(self.data, 
                                   min_value=min_value, 
@@ -164,7 +163,7 @@ class RadioSource:
         return dend
     
     
-    def to_catalog(self, dendrogram=None, catalog=None):
+    def to_catalog(self, dendrogram=None):
         """
         Returns an astropy.table.Table object containing a position-position 
         catalog of leaves in a dendrogram.
@@ -173,8 +172,6 @@ class RadioSource:
         ----------
         dendrogram : ~astrodendro.dendrogram.Dendrogram object, optional
             The dendrogram object to extract sources from.
-        catalog : ~astropy.table.Table object, optional
-            A position-position catalog, as output by astrodendro.pp_catalog.
         """
         
         if not dendrogram:
@@ -183,12 +180,7 @@ class RadioSource:
             except AttributeError:
                 dendrogram = self.to_dendrogram()
                 
-        if not catalog:
-            try:
-                cat = self.catalog
-            except AttributeError:
-                cat = pp_catalog(dendrogram.leaves, self.metadata)
-
+        cat = pp_catalog(dendrogram.leaves, self.metadata)
         cat['_idx'] = range(len(cat))
     
         try:
@@ -527,7 +519,7 @@ class RadioSource:
         plt.show()
         
     
-    def autoreject(self, threshold=6.):
+    def autoreject(self, threshold=None):
         """
         Reject noisy detections.
         
@@ -537,8 +529,8 @@ class RadioSource:
             The signal-to-noise threshold below which sources are rejected
         """
             
-        if not threshold:
-            threshold = self.default_threshold
+        if threshold is None:
+            threshold = self.threshold
       
         try:
             snrs = self.snr
@@ -567,4 +559,6 @@ class RadioSource:
         for idx in accepted_list:
             self.catalog['rejected'][np.where(self.catalog['_idx'] == idx)] = 0
 
+    def reset(self):
+        self.catalog['rejected'] = 0
         

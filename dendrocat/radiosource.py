@@ -61,6 +61,14 @@ class RadioSource:
         self.annulus_width = 1e-5 * u.deg
         self.annulus_padding = 1e-5 * u.deg
     
+        self.properties = {
+            'default_min_value':self.default_min_value,
+            'default_min_delta':self.default_min_delta,
+            'default_min_npix':self.default_min_npix,
+            'annulus_width':self.annulus_width,
+            'annulus_padding':self.annulus_padding
+                            }
+    
     def _get_fits_info(self):
         """
         Get information from FITS header.
@@ -86,17 +94,8 @@ class RadioSource:
                 if not self.freq_id:
                     self.freq_id = ('{:.0f}'.format(np.round(self.nu
                                             .to(u.GHz))).replace(' ', ''))
+                self.set_metadata()
                 
-                # Get metadata - need to raise exceptions if data is missing
-                self.metadata = {
-                        'data_unit': u.Unit(self.header['BUNIT']),
-                        'spatial_scale': self.pixel_scale,
-                        'beam_major': self.beam.major,
-                        'beam_minor': self.beam.minor,
-                        'wavelength': self.nu,
-                        'velocity_scale': u.km/u.s,
-                        'wcs': self.wcs,
-                            }
             else:
                 print('FITS info collection not currently supported for ' \
                       '{}. Please manually set the following instance' \
@@ -107,8 +106,19 @@ class RadioSource:
             self.telescope = 'UNKNOWN'
             print('Telescope not identified. Please manually set the ' \
                   'following instance attributes:')
-            print('telescope\n', 'nu\n', 'freq_id\n', 'metadata\n')
+            print(' telescope\n', 'nu\n', 'freq_id\n', 'metadata\n')
     
+    
+    def set_metadata(self):
+        self.metadata = {
+            'data_unit': u.Unit(self.header['BUNIT']),
+            'spatial_scale': self.pixel_scale,
+            'beam_major': self.beam.major,
+            'beam_minor': self.beam.minor,
+            'wavelength': self.nu,
+            'velocity_scale': u.km/u.s,
+            'wcs': self.wcs,
+                        }
     
     def to_dendrogram(self, min_value=None, min_delta=None, min_npix=None, 
                       save=True):
@@ -181,13 +191,22 @@ class RadioSource:
 
         cat['_idx'] = range(len(cat))
     
-        cat['major_sigma'] = cat['major_sigma']*np.sqrt(8*np.log(2))
-        cat['minor_sigma'] = cat['minor_sigma']*np.sqrt(8*np.log(2))
-        cat.rename_column('major_sigma', 'major_fwhm')
-        cat.rename_column('minor_sigma', 'minor_fwhm')
-        cat.rename_column('flux', 'dend_flux_{}'.format(self.freq_id))
-        cat.add_column(Column(np.zeros(len(cat)), dtype=int), name='rejected')
+        try:
+            cat['major_sigma'] = cat['major_sigma']*np.sqrt(8*np.log(2))
+            cat['minor_sigma'] = cat['minor_sigma']*np.sqrt(8*np.log(2))
+            cat.rename_column('major_sigma', 'major_fwhm')
+            cat.rename_column('minor_sigma', 'minor_fwhm')
+            cat.rename_column('flux', 'dend_flux_{}'.format(self.freq_id))
+        except KeyError:
+            pass
         
+        try:
+            cat.remove_column('rejected')
+            cat.remove_column('detected_'+self.freq_id)
+        except KeyError:
+            pass
+            
+        cat.add_column(Column(np.zeros(len(cat)), dtype=int), name='rejected')
         cat.add_column(Column(np.ones(len(cat)), dtype=int), 
                        name='detected_'+self.freq_id)
                        
@@ -307,7 +326,7 @@ class RadioSource:
         
             if isinstance(cutouts[i], Cutout2D):
                 pass
-            elif np.isnan(cutouts[i]):
+            else:
                 pix_arrays.append(float('nan'))
                 masks.append(float('nan'))
                 continue
@@ -376,7 +395,7 @@ class RadioSource:
         for i in range(len(catalog)):
             try:
                 snr = np.max(source[i]) / rms(background[i])
-            except ZeroDivisionError:
+            except (ZeroDivisionError, ValueError) as e:
                 snr = 0.0
             snr_vals.append(snr)
             
@@ -392,7 +411,7 @@ class RadioSource:
     
     
     def plot_grid(self, catalog=None, data=None, cutouts=None, cutout_data=None,
-                  apertures=None, skip=True):
+                  apertures=None, skip=True, outfile=None):
         """
         Plot sources in a grid.
         
@@ -406,8 +425,8 @@ class RadioSource:
             Image cutout regions to save computation time, if they have already
             been calculated.
         cutout_data : list of numpy.ndarrays, optional
-            Image cutout region data to save on computation time, if it has already
-            been calculated.
+            Image cutout region data to save on computation time, if it has 
+            already been calculated.
         apertures : list of dendrocat.aperture functions, optional
             Apertures to plot over the image cutouts.
         skip : bool, optional
@@ -431,7 +450,8 @@ class RadioSource:
         
         # Get cutouts
         if cutouts is None or cutout_data is None:
-            cutouts, cutout_data = self._make_cutouts(catalog=catalog, data=data)
+            cutouts, cutout_data = self._make_cutouts(catalog=catalog, 
+                                                      data=data)
         
         # Get pixels and masks in each aperture
         ap_names = []
@@ -453,6 +473,7 @@ class RadioSource:
         
         snr_vals = self.get_snr(source=ellipse_pix, background=annulus_pix,
                                 catalog=catalog)
+        
         names = np.array(catalog['_idx'])
         rejected = np.array(catalog['rejected'])
         
@@ -460,14 +481,16 @@ class RadioSource:
             accepted_indices = np.where(catalog['rejected'] == 0)[0]
             snr_vals = snr_vals[accepted_indices]
             cutout_data = cutout_data[accepted_indices]
-            masks = masks[accepted_indices]
             names = names[accepted_indices]
             rejected = rejected[accepted_indices]
+            for k in range(len(masks)):
+                masks[k] = masks[k][accepted_indices]
             
         not_nan = ~np.isnan(cutout_data).any(axis=1).any(axis=1)
         snr_vals = snr_vals[not_nan]
         cutout_data = cutout_data[not_nan]
-        masks = masks[not_nan]
+        for k in range(len(masks)):
+            masks[k] = masks[k][not_nan]
         names = names[not_nan]
         rejected = rejected[not_nan]
         
@@ -487,8 +510,8 @@ class RadioSource:
             else:
                 plt.imshow(image, origin='lower')
 
-            for j in range(len(masks[i])):
-                plt.imshow(masks[i][j], origin='lower', cmap='gray', 
+            for k in range(len(masks)):
+                plt.imshow(masks[k][i], origin='lower', cmap='gray', 
                            alpha=0.15)
                 
             plt.text(0, 0, '{}  SN {:.1f}'.format(names[i], snr_vals[i]), 
@@ -497,8 +520,12 @@ class RadioSource:
             plt.yticks([])
         
         plt.tight_layout()
+        
+        if outfile is not None:
+            plt.savefig(outfile, dpi=300, bbox_inches='tight')                              
+        
         plt.show()
-    
+        
     
     def autoreject(self, threshold=6.):
         """
@@ -532,12 +559,12 @@ class RadioSource:
     def reject(self, rejected_list):
         
         for idx in rejected_list:
-            self.catalog[np.where(self.catalog['_idx'] == idx)]['rejected'] = 1
+            self.catalog['rejected'][np.where(self.catalog['_idx'] == idx)] = 1
             
             
     def accept(self, accepted_list):
         
         for idx in accepted_list:
-            self.catalog[np.where(self.catalog['_idx'] == idx)]['rejected'] = 0
+            self.catalog['rejected'][np.where(self.catalog['_idx'] == idx)] = 0
 
         

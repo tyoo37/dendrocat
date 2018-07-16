@@ -64,15 +64,7 @@ def save_regions(catalog, outfile, hide_rejects=True):
         outfile = outfile.split('.')[0]+'.reg'
     
     if hide_rejects:
-        try:
-            catalog = self.catalog[np.where(self.catalog['rejected'] == 0)]
-        except AttributeError:
-            catalog = catalog[np.where(catalog['rejected'] == 0)]
-    else:
-        try:
-            catalog = self.catalog
-        except AttributeError:
-            pass
+        catalog = catalog[np.where(catalog['rejected'] == 0)]
             
     with open(outfile, 'w') as fh:
         fh.write("icrs\n")

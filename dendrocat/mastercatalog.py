@@ -6,6 +6,7 @@ if __package__ == '':
     __package__ = 'dendrocat'
 from .utils import rms, _matcher
 from .radiosource import RadioSource
+from .aperture import ellipse, annulus
 
 
 def match(*args, verbose=True):
@@ -40,18 +41,19 @@ class MasterCatalog:
         """
         if catalog is not None:
             self.catalog = catalog
-        
+        self.add_objects(*args)
+
+
+    def add_objects(self, *args):
         obj_prefix = 'radiosource_'
-        
         for obj in args:
-        
             if isinstance(obj, MasterCatalog):
                 for key in obj.__dict__.keys():
                     if key.split('_')[0]+'_' == obj_prefix:
                         self.__dict__[key] = obj[key]
             else:        
                 self.__dict__[obj_prefix+obj.freq_id] = obj
-
+    
     
     def photometer(self, aperture, catalog=None, **kwargs):
         """
@@ -66,6 +68,7 @@ class MasterCatalog:
             The catalog from which to extract source coordinates and ellipse
             parameters.
         """
+        
         if catalog is None:
             catalog = self.catalog
         
@@ -76,14 +79,15 @@ class MasterCatalog:
         
         for i, rs_obj in enumerate(rs_objects):
             
+            data = rs_obj.data/rs_obj.ppbeam
             cutouts, cutout_data = rs_obj._make_cutouts(catalog=catalog, 
                                                         save=False)
                                                                                     
             pix_in_aperture = rs_obj.get_pixels(
                                                 aperture,
                                                 catalog=catalog,
+                                                data=data,
                                                 cutouts=cutouts,
-                                                cutout_data=cutout_data,
                                                 **kwargs
                                                 )[0]
             

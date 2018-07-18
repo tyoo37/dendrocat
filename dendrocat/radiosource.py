@@ -515,9 +515,7 @@ class RadioSource:
         
         if outfile is not None:
             plt.savefig(outfile, dpi=300, bbox_inches='tight')                              
-        
-        plt.show()
-        
+
     
     def autoreject(self, threshold=None):
         """

@@ -11,6 +11,9 @@ def mask(reg, cutout):
     mask = reg.to_mask(mode='center')
     return np.array(mask.to_image((n, n)), dtype='int')
     
+def specindex(nu1, nu2, f1, alpha):
+    return f1*(nu2/nu1)**(alpha) 
+
 def rms(x):
     return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
 

@@ -13,6 +13,10 @@ def mask(reg, cutout):
     
 def specindex(nu1, nu2, f1, alpha):
     return f1*(nu2/nu1)**(alpha) 
+    
+def findrow(idx, catalog):
+    idx = int(idx)
+    return catalog[np.where(catalog['_idx'] == idx)]
 
 def rms(x):
     return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
@@ -98,7 +102,10 @@ def _matcher(obj1, obj2, verbose=True):
     stack = vstack([obj1.catalog, obj2.catalog])
     
     all_colnames.add('_idy')
-    stack.add_column(Column(range(len(stack)), name='_idy'))
+    try:
+        stack.add_column(Column(range(len(stack)), name='_idy'))
+    except ValueError:
+        stack['_idy'] = range(len(stack))
     stack = stack[sorted(list(all_colnames))]
     
     rejected = np.where(stack['rejected'] == 1)[0]
@@ -179,6 +186,5 @@ def _matcher(obj1, obj2, verbose=True):
         if colname.split('_')[0] == 'detected':
             stack[colname].fill_value = 0
     
-    stack.remove_column('_idy')
     return stack
 

@@ -15,7 +15,7 @@ warnings.filterwarnings('ignore')
 
 if __package__ == '':
     __package__ = 'dendrocat'
-from .aperture import annulus, ellipse
+from .aperture import ellipse, annulus
 from .utils import rms
 
 class RadioSource:
@@ -181,7 +181,9 @@ class RadioSource:
                 dendrogram = self.to_dendrogram()
                 
         cat = pp_catalog(dendrogram.leaves, self.metadata)
-        cat['_idx'] = range(len(cat))
+        for i, idx in enumerate(cat['_idx']):
+            cat['_idx'][i] = int('{:.0f}{:03d}'.format(
+                                       np.round(self.nu.to(u.GHz).value), idx))
     
         try:
             cat['major_sigma'] = cat['major_sigma']*np.sqrt(8*np.log(2))
@@ -438,7 +440,8 @@ class RadioSource:
         if apertures is None:
             apertures = [ellipse, annulus]
         else:
-            apertures = list(set(apertures+[ellipse, annulus]))
+            apertures = list(set(apertures+[ellipse, 
+                                            annulus]))
         
         # Get cutouts
         if cutouts is None or cutout_data is None:

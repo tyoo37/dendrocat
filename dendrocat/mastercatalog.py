@@ -110,8 +110,11 @@ class MasterCatalog:
             
             sum_data = np.zeros(len(pix_in_aperture))
             for j in range(len(pix_in_aperture)):
-                ind = [pix_in_aperture > 0.]
-                sum_data[j] = np.sum(pix_in_aperture[j][ind])/rs_obj.ppbeam
+                ind = [pix_in_aperture[j] > 0.]
+                try:
+                    sum_data[j] = np.sum(pix_in_aperture[j][ind])/rs_obj.ppbeam
+                except TypeError: # Catches single pixel apertures
+                    sum_data[j] = float('nan') 
             aperture_sum_col = MaskedColumn(data=sum_data,
                                             name=names[1])                  
                                             
@@ -130,7 +133,7 @@ class MasterCatalog:
             npix_data = np.zeros(len(pix_in_aperture))
             for j in range(len(pix_in_aperture)):
                 if np.isnan(pix_in_aperture[j]).any():
-                    npix_data[j] = None
+                    npix_data[j] = float('nan')
                 else:
                     npix_data[j] = len(pix_in_aperture[j])
                 aperture_npix_col = MaskedColumn(data=npix_data,
@@ -151,8 +154,11 @@ class MasterCatalog:
             
             # Mask NaN values        
             for col in self.catalog.colnames:
-                isnan = np.argwhere(np.isnan(list(self.catalog[col])))
-                self.catalog.mask[col][isnan] = True
+                try:
+                    isnan = np.argwhere(np.isnan(list(self.catalog[col])))
+                    self.catalog.mask[col][isnan] = True
+                except TypeError:
+                    pass
             
             
     def ffplot(self, rsobj1, rsobj2, apertures=[], specs=None, peak=False,

@@ -97,8 +97,12 @@ def _matcher(obj1, obj2, verbose=True):
     ----------
     astropy.table.Table object
     """
-  
-    all_colnames = set(obj1.catalog.colnames + obj2.catalog.colnames)
+    
+    for obj in [obj1, obj2]:
+        if not hasattr(obj, 'catalog'):
+            obj.to_catalog()
+    
+    all_colnames = set(obj1.catalog.colnames + obj2.catalog.colnames)        
     stack = vstack([obj1.catalog, obj2.catalog])
     
     all_colnames.add('_index')
@@ -185,6 +189,8 @@ def _matcher(obj1, obj2, verbose=True):
     for colname in stack.colnames:
         if colname.split('_')[0] == 'detected':
             stack[colname].fill_value = 0
+
+    stack['_index'] = range(len(stack))
     
     return stack
 

@@ -9,8 +9,9 @@
     - [X] FFPlot
  - [X] Test and debug FFPlot
  - [X] Write new module to plot spectral energy distributions
- - [ ] Add upper limits for detections with 2~3 times higher noise than signal
-    - [ ] Only plot noise level (downward arrow)
+ - [X] Add upper limits for detections with 2~3 times higher noise than signal
+    - [X] Only plot noise level (downward arrow)
+    - [X] Plot three arrows for 1, 2, and 3 sigma
  - [ ] Preserve original dendrogram _idx, rework to use a different unique identifier for everything else
  - [ ] Save and load object information with pickle
  - [ ] Implement circular apertures of different radii
@@ -29,3 +30,7 @@
 #### Bugs
  - Large amount of `NaN` SNR values when autorejecting a catalog made from a dendrogram with low min values
     - [SOLVED] Caused by empty arrays for annulus pixels. Solution is to adjust default annulus width and padding to ensure annulus region isn't infinitely thin.
+ - Elliptical flux sums are sometimes lower than the peak flux
+    - [SOLVED] The ellipse may contain negative flux values, if it includes a decent portion of the background. In this case, the sum can be less than the peak flux. Temporary solution is to only sum positive values.
+ - Bright sources with contaminated annululi are mistaken for upper limit detections due to their low SN
+

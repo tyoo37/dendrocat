@@ -181,8 +181,9 @@ class RadioSource:
                 dendrogram = self.to_dendrogram()
                 
         cat = pp_catalog(dendrogram.leaves, self.metadata)
+        cat.add_column(Column(len(cat)), dtype=str, name='_name')        
         for i, idx in enumerate(cat['_idx']):
-            cat['_idx'][i] = int('{:.0f}{:03d}'.format(
+            cat['_name'][i] = str('{:.0f}{:03d}'.format(
                                        np.round(self.nu.to(u.GHz).value), idx))
     
         try:
@@ -469,7 +470,7 @@ class RadioSource:
         snr_vals = self.get_snr(source=ellipse_pix, background=annulus_pix,
                                 catalog=catalog)
         
-        names = np.array(catalog['_idx'])
+        names = np.array(catalog['_names'])
         rejected = np.array(catalog['rejected'])
         
         if skip:
@@ -518,7 +519,7 @@ class RadioSource:
             plt.text(0, 0, 'SN {:.1f}'.format(snr_vals[i]), fontsize=7, 
                      color='w', ha='left', va='bottom', 
                      transform=ax.transAxes)
-            plt.text(0, 1, str(names[i]), fontsize=7, color='w', ha='left', 
+            plt.text(0, 1, names[i], fontsize=7, color='w', ha='left', 
                      va='top', transform=ax.transAxes)
 
             plt.xticks([])
@@ -561,14 +562,16 @@ class RadioSource:
 
     def reject(self, rejected_list):
         
-        for idx in rejected_list:
-            self.catalog['rejected'][np.where(self.catalog['_idx'] == idx)] = 1
+        for name in rejected_list:
+            self.catalog['rejected']
+                        [np.where(self.catalog['_name'] == name)] = 1
             
             
     def accept(self, accepted_list):
         
-        for idx in accepted_list:
-            self.catalog['rejected'][np.where(self.catalog['_idx'] == idx)] = 0
+        for name in accepted_list:
+            self.catalog['rejected']
+                        [np.where(self.catalog['_name'] == name)] = 0
 
     def reset(self):
         self.catalog['rejected'] = 0

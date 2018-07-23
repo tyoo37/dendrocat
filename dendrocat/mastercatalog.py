@@ -110,7 +110,8 @@ class MasterCatalog:
             
             sum_data = np.zeros(len(pix_in_aperture))
             for j in range(len(pix_in_aperture)):
-                sum_data[j] = np.sum(pix_in_aperture[j])/rs_obj.ppbeam                   
+                ind = [pix_in_aperture > 0.]
+                sum_data[j] = np.sum(pix_in_aperture[j][ind])/rs_obj.ppbeam
             aperture_sum_col = MaskedColumn(data=sum_data,
                                             name=names[1])                  
                                             
@@ -220,7 +221,7 @@ class MasterCatalog:
         err1.append(catalog[rsobj1.freq_id+'_annulus_rms'])
         err2.append(catalog[rsobj2.freq_id+'_annulus_rms'])
         
-        marker_labels = catalog['_idx']
+        marker_labels = catalog['_name']
         
         xflux = np.linspace(np.min(flux1), np.max(flux1), 10)
         yfluxes = []
@@ -371,8 +372,8 @@ class MasterCatalog:
                 ax.set_ylabel('Flux (Jy)')
         
         ax.set_xticks(nus, ['{} GHz'.format(nu) for nu in nus])
-        ax.set_title('Spectral Energy Distribution for _idx={}'
-                     .format(row['_idx']))
+        ax.set_title('Spectral Energy Distribution for _name={}'
+                     .format(row['_name']))
                      
         handles, labels = plt.gca().get_legend_handles_labels()
         label = OrderedDict(zip(labels, handles))

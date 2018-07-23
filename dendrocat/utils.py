@@ -101,11 +101,11 @@ def _matcher(obj1, obj2, verbose=True):
     all_colnames = set(obj1.catalog.colnames + obj2.catalog.colnames)
     stack = vstack([obj1.catalog, obj2.catalog])
     
-    all_colnames.add('_idy')
+    all_colnames.add('_index')
     try:
-        stack.add_column(Column(range(len(stack)), name='_idy'))
+        stack.add_column(Column(range(len(stack)), name='_index'))
     except ValueError:
-        stack['_idy'] = range(len(stack))
+        stack['_index'] = range(len(stack))
     stack = stack[sorted(list(all_colnames))]
     
     rejected = np.where(stack['rejected'] == 1)[0]
@@ -126,7 +126,7 @@ def _matcher(obj1, obj2, verbose=True):
         
         teststar = stack[i]
         delta_p = vstack([stack[:i], stack[i+1:]]
-                         )['_idx', '_idy', 'x_cen', 'y_cen']
+                         )['_idx', '_index', 'x_cen', 'y_cen']
         delta_p['x_cen'] = np.abs(delta_p['x_cen'] - teststar['x_cen'])                
         delta_p['y_cen'] = np.abs(delta_p['y_cen'] - teststar['y_cen'])
         delta_p.sort('x_cen')
@@ -147,7 +147,7 @@ def _matcher(obj1, obj2, verbose=True):
         delta_p.sort('dist')
         
         if found_match:
-            match_index = np.where(stack['_idy'] == delta_p[0]['_idy'])
+            match_index = np.where(stack['_index'] == delta_p[0]['_index'])
             match = deepcopy(stack[match_index])
             stack.remove_row(match_index[0][0])
             

@@ -480,14 +480,20 @@ class RadioSource:
             rejected = rejected[accepted_indices]
             for k in range(len(masks)):
                 masks[k] = masks[k][accepted_indices]
-            
-        not_nan = ~np.isnan(cutout_data).any(axis=1).any(axis=1)
-        snr_vals = snr_vals[not_nan]
-        cutout_data = cutout_data[not_nan]
+        
+        an = np.ones(len(cutouts), dtype='bool')
+        for i in range(len(cutouts)):
+            try:
+                np.isnan(cutouts[i])
+                an[i] = 0
+            except TypeError:
+                pass
+        snr_vals = snr_vals[an]
+        cutout_data = cutout_data[an]
         for k in range(len(masks)):
-            masks[k] = masks[k][not_nan]
-        names = names[not_nan]
-        rejected = rejected[not_nan]
+            masks[k] = masks[k][an]
+        names = names[an]
+        rejected = rejected[an]
         
         n_images = len(cutout_data)
         xplots = int(np.around(np.sqrt(n_images)))
@@ -498,7 +504,7 @@ class RadioSource:
         for i in range(n_images):
             
             image = cutout_data[i]
-            plt.subplot(gs1[i])
+            ax = plt.subplot(gs1[i])
             
             if rejected[i] == 1:
                 plt.imshow(image, origin='lower', cmap='gray')
@@ -509,8 +515,12 @@ class RadioSource:
                 plt.imshow(masks[k][i], origin='lower', cmap='gray', 
                            alpha=0.15)
                 
-            plt.text(0, 0, '{}  SN {:.1f}'.format(names[i], snr_vals[i]), 
-                     fontsize=7, color='w')
+            plt.text(0, 0, 'SN {:.1f}'.format(snr_vals[i]), fontsize=7, 
+                     color='w', ha='left', va='bottom', 
+                     transform=ax.transAxes)
+            plt.text(0, 1, str(names[i]), fontsize=7, color='w', ha='left', 
+                     va='top', transform=ax.transAxes)
+
             plt.xticks([])
             plt.yticks([])
         

@@ -1,5 +1,5 @@
-from sed import *
 from astropy.table import Table
+import astropy.units as u
 from astropy.io import fits
 import numpy as np
 import dendrocat

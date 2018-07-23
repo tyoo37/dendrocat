@@ -1,4 +1,5 @@
 from astropy.table import MaskedColumn
+from collections import OrderedDict
 import numpy as np
 import astropy.units as u
 from copy import deepcopy
@@ -137,13 +138,15 @@ class MasterCatalog:
             try:
                 self.catalog.remove_columns(names)
             except KeyError:
-                self.catalog.add_columns([
-                    aperture_peak_col,
-                    aperture_sum_col,
-                    aperture_rms_col,
-                    aperture_median_col,
-                    aperture_npix_col
-                ])  
+                pass
+                
+            self.catalog.add_columns([
+                aperture_peak_col,
+                aperture_sum_col,
+                aperture_rms_col,
+                aperture_median_col,
+                aperture_npix_col
+            ])  
             
             # Mask NaN values        
             for col in self.catalog.colnames:
@@ -298,23 +301,32 @@ class MasterCatalog:
             scale.
         '''    
         
-        if callable(aperture) is True:
-            aperture = aperture.__name__
         if aperture is None:
-            aperture = 'ellipse'
+            aperture = ellipse
         method = ['peak' if peak else 'sum'][0]
         
-        cols = [s for s in row.colnames if aperture in s and method in s]
-        err_cols = [e for e in row.colnames if 'annulus' in e and 'rms' in e]
-        freq_ids = [col.split('_')[0] for col in cols]
         nus = []
+        freq_ids = []
         for obj in self.__dict__.values():
+            if isinstance(obj, RadioSource):
+                nus.append(obj.nu.to(u.GHz).value)
+                freq_ids.append(obj.freq_id)
+        
+        apname = aperture.__name__
+        
+        for freq_id in freq_ids:
             try:
-                for freq_id in freq_ids:
-                    if obj.freq_id == freq_id:
-                        nus.append(obj.nu.to(u.GHz).value)
-            except AttributeError:
-                pass
+                self.catalog['{}_{}_{}'.format(freq_id, apname, method)]
+            except KeyError:
+                self.photometer(aperture)
+                
+            try:
+                self.catalog['{}_{}_{}'.format(freq_id, 'annulus', method)]
+            except KeyError:
+                self.photometer(annulus)
+        
+        cols = [s for s in row.colnames if apname in s and method in s]
+        err_cols = [e for e in row.colnames if 'annulus' in e and 'rms' in e]
         fluxes = [row[col] for col in cols]
         errs = [row[err_col] for err_col in err_cols]
         x = np.linspace(0.8*np.min(nus), 1.1*np.max(nus), 100)
@@ -326,14 +338,22 @@ class MasterCatalog:
                 constant = fluxes[k]/(nus[k]**a)
                 ys.append(constant*(x**a))
         
-        fig, ax = plt.subplots()              
-        ax.errorbar(nus, fluxes, yerr=errs, fmt='o', ms=2, elinewidth=0.75, 
-                    color='k', label='{} aperture {}'.format(aperture, method), 
-                    zorder=3)
+        fig, ax = plt.subplots()
+        
+        for i in range(len(fluxes)):
+            if fluxes[i] < 3.*errs[i]:
+                ax.scatter(nus[i], errs[i], marker='v', color='k', zorder=3, label=r'1 $\sigma$')
+                ax.scatter(nus[i], 2.*errs[i], marker='v', color='darkred', zorder=3, label=r'2 $\sigma$')
+                ax.scatter(nus[i], 3.*errs[i], marker='v', color='red', zorder=3, label=r'3 $\sigma$')
+            else:
+                ax.errorbar(nus[i], fluxes[i], yerr=errs[i], fmt='o', ms=2, 
+                            elinewidth=0.75, color='k', zorder=3,
+                            label='{} aperture {}'.format(apname, method))
+                        
         if ys:
             for i, y in enumerate(ys):                     
-                ax.plot(x, y, label=r'$\alpha$ = {}'.format(alphas[i], 
-                                                            zorder=2))
+                ax.plot(x, y, '--',
+                        label=r'$\alpha$ = {}'.format(alphas[i], zorder=2))
                 
         if log is True:
             ax.set_xscale('log')
@@ -353,7 +373,10 @@ class MasterCatalog:
         ax.set_xticks(nus, ['{} GHz'.format(nu) for nu in nus])
         ax.set_title('Spectral Energy Distribution for _idx={}'
                      .format(row['_idx']))
-        ax.legend()
+                     
+        handles, labels = plt.gca().get_legend_handles_labels()
+        label = OrderedDict(zip(labels, handles))
+        ax.legend(label.values(), label.keys())
         
         if outfile is not None:
             ax.savefig(outfile, dpi=300, bbox_inches='tight')

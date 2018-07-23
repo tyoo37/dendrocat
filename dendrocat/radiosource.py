@@ -206,8 +206,7 @@ class RadioSource:
         cat.add_column(Column(np.ones(len(cat)), dtype=int), 
                        name='detected_'+self.freq_id)
                        
-        self.catalog = Table(cat, masked=True)
-        
+        self.catalog = Table(cat, masked=True)[sorted(list(cat.colnames))]
         return Table(cat, masked=True)
 
 
@@ -471,7 +470,7 @@ class RadioSource:
         snr_vals = self.get_snr(source=ellipse_pix, background=annulus_pix,
                                 catalog=catalog)
         
-        names = np.array(catalog['_names'])
+        names = np.array(catalog['_name'])
         rejected = np.array(catalog['rejected'])
         
         if skip:
@@ -562,13 +561,13 @@ class RadioSource:
                     
 
     def reject(self, rejected_list):
-        
+        rejected_list = np.array(rejected_list, dtype=str)
         for nm in rejected_list:
             self.catalog['rejected'][np.where(self.catalog['_name'] == nm)] = 1
             
             
     def accept(self, accepted_list):
-        
+        accepted_list = np.array(accepted_list, dtype=str)
         for nm in accepted_list:
             self.catalog['rejected'][np.where(self.catalog['_name'] == nm)] = 0
 

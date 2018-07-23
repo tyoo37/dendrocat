@@ -13,4 +13,13 @@ rs3.set_metadata()
 rs1.autoreject()
 rs2.autoreject()
 
+
+rs1.reject([])
+
+
+
 mc = dendrocat.MasterCatalog(rs1, rs2, rs3, catalog=dendrocat.match(rs1, rs2).catalog)
+mc.photometer(dendrocat.ellipse)
+mc.photometer(dendrocat.annulus)
+
+

@@ -477,6 +477,7 @@ class RadioSource:
             accepted_indices = np.where(catalog['rejected'] == 0)[0]
             snr_vals = snr_vals[accepted_indices]
             cutout_data = cutout_data[accepted_indices]
+            cutouts = cutouts[accepted_indices]
             names = names[accepted_indices]
             rejected = rejected[accepted_indices]
             for k in range(len(masks)):
@@ -489,6 +490,7 @@ class RadioSource:
                 an[i] = 0
             except TypeError:
                 pass
+
         snr_vals = snr_vals[an]
         cutout_data = cutout_data[an]
         for k in range(len(masks)):

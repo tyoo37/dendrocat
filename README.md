@@ -12,7 +12,7 @@
  - [X] Add upper limits for detections with 2~3 times higher noise than signal
     - [X] Only plot noise level (downward arrow)
     - [X] Plot three arrows for 1, 2, and 3 sigma
- - [ ] Preserve original dendrogram _idx, rework to use a different unique identifier for everything else
+ - [X] Preserve original dendrogram _idx, rework to use a different unique identifier for everything else
  - [ ] Save and load object information with pickle
  - [ ] Implement circular apertures of different radii
     - [ ] Function name changes with radius

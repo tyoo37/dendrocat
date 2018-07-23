@@ -562,16 +562,14 @@ class RadioSource:
 
     def reject(self, rejected_list):
         
-        for name in rejected_list:
-            self.catalog['rejected']
-                        [np.where(self.catalog['_name'] == name)] = 1
+        for nm in rejected_list:
+            self.catalog['rejected'][np.where(self.catalog['_name'] == nm)] = 1
             
             
     def accept(self, accepted_list):
         
-        for name in accepted_list:
-            self.catalog['rejected']
-                        [np.where(self.catalog['_name'] == name)] = 0
+        for nm in accepted_list:
+            self.catalog['rejected'][np.where(self.catalog['_name'] == nm)] = 0
 
     def reset(self):
         self.catalog['rejected'] = 0

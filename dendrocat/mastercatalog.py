@@ -1,4 +1,4 @@
-from astropy.table import MaskedColumn
+from astropy.table import MaskedColumn, vstack
 from collections import OrderedDict
 import numpy as np
 import astropy.units as u
@@ -56,6 +56,12 @@ class MasterCatalog:
                         self.__dict__[key] = obj[key]
             else:        
                 self.__dict__[obj_prefix+obj.freq_id] = obj
+    
+    
+    def add_sources(self, *args):
+        for sources in args:
+            self.catalog = vstack([self.catalog, sources])
+            self.catalog['_index'] = range(len(self.catalog))
     
     
     def photometer(self, aperture, catalog=None, **kwargs):
@@ -379,7 +385,7 @@ class MasterCatalog:
         
         ax.set_xticks(nus, ['{} GHz'.format(nu) for nu in nus])
         ax.set_title('Spectral Energy Distribution for _name={}'
-                     .format(row['_name']))
+                     .format(row['_name'][0]))
                      
         handles, labels = plt.gca().get_legend_handles_labels()
         label = OrderedDict(zip(labels, handles))

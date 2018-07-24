@@ -10,8 +10,8 @@ def ellipse(source, cutout, obj):
 
     center = regions.PixCoord(cutout.center_cutout[0], cutout.center_cutout[1])
 
-    pix_major = source['major_fwhm']*u.deg / obj.pixel_scale
-    pix_minor = source['minor_fwhm']*u.deg / obj.pixel_scale
+    pix_major = 2.*source['major_fwhm']*u.deg / obj.pixel_scale
+    pix_minor = 2.*source['minor_fwhm']*u.deg / obj.pixel_scale
     pa = source['position_angle']*u.deg
     
     radius = source['major_fwhm'] * u.deg

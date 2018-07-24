@@ -51,7 +51,7 @@ def commonbeam(major1, minor1, pa1, major2, minor2, pa2):
     
     return new_major.to(u.deg), new_minor.to(u.deg), new_pa
 
-def save_regions(catalog, outfile, hide_rejects=True):
+def save_regions(catalog, outfile, skip_rejects=True):
     """
     Save a catalog as a a DS9 region file.
     
@@ -62,7 +62,7 @@ def save_regions(catalog, outfile, hide_rejects=True):
         coordinates and ellipse properties.
     outfile : str
         Path to save the region file.
-    hide_rejects : bool, optional
+    skip_rejects : bool, optional
         If enabled, rejected sources will not be saved. Default is True
     """
     
@@ -70,14 +70,14 @@ def save_regions(catalog, outfile, hide_rejects=True):
         warnings.warn('Invalid or missing file extension. Self-correcting.')
         outfile = outfile.split('.')[0]+'.reg'
     
-    if hide_rejects:
+    if skip_rejects:
         catalog = catalog[np.where(catalog['rejected'] == 0)]
             
     with open(outfile, 'w') as fh:
         fh.write("icrs\n")
         for row in catalog:
             fh.write("ellipse({x_cen}, {y_cen}, {major_fwhm}, " \
-                     "{minor_fwhm}, {position_angle}) # text={{{_idx}}}\n"
+                     "{minor_fwhm}, {position_angle}) # text={{{_name}}}\n"
                      .format(**dict(zip(row.colnames, row))))
 
 
@@ -129,8 +129,8 @@ def _matcher(obj1, obj2, verbose=True):
             continue
         
         teststar = stack[i]
-        delta_p = vstack([stack[:i], stack[i+1:]]
-                         )['_idx', '_index', 'x_cen', 'y_cen']
+        delta_p = deepcopy(stack[stack['rejected']==0]['_idx', '_index', 'x_cen', 'y_cen'])
+        delta_p.remove_rows(np.where(delta_p['_index']==teststar['_index'])[0])
         delta_p['x_cen'] = np.abs(delta_p['x_cen'] - teststar['x_cen'])                
         delta_p['y_cen'] = np.abs(delta_p['y_cen'] - teststar['y_cen'])
         delta_p.sort('x_cen')

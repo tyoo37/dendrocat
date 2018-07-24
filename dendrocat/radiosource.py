@@ -5,7 +5,7 @@ import numpy as np
 import astropy.units as u
 from astropy import coordinates
 from astropy.nddata.utils import Cutout2D, NoOverlapError
-from astropy.table import Column, Table
+from astropy.table import Column, Table, vstack
 from astrodendro import Dendrogram, pp_catalog
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
@@ -182,7 +182,9 @@ class RadioSource:
                 
         cat = pp_catalog(dendrogram.leaves, self.metadata)
         cat.add_column(Column(length=len(cat), shape=10, dtype=str), 
-                       name='_name')        
+                       name='_name')
+        cat.add_column(Column(data=range(len(cat))), name='_index')
+        
         for i, idx in enumerate(cat['_idx']):
             cat['_name'][i] = str('{:.0f}{:03d}'.format(
                                        np.round(self.nu.to(u.GHz).value), idx))
@@ -208,6 +210,12 @@ class RadioSource:
                        
         self.catalog = Table(cat, masked=True)[sorted(list(cat.colnames))]
         return Table(cat, masked=True)
+
+
+    def add_sources(self, *args):
+        for sources in args:
+            self.catalog = vstack([self.catalog, sources])
+            self.catalog['_index'] = range(len(self.catalog))
 
 
     def _make_cutouts(self, catalog=None, data=None, save=True):
@@ -406,7 +414,7 @@ class RadioSource:
     
     
     def plot_grid(self, catalog=None, data=None, cutouts=None, cutout_data=None,
-                  apertures=None, skip=True, outfile=None):
+                  apertures=None, skip_rejects=True, outfile=None):
         """
         Plot sources in a grid.
         
@@ -424,7 +432,7 @@ class RadioSource:
             already been calculated.
         apertures : list of dendrocat.aperture functions, optional
             Apertures to plot over the image cutouts.
-        skip : bool, optional
+        skip_rejects : bool, optional
             If enabled, don't plot rejected sources. Default is True.
         """
         
@@ -473,7 +481,7 @@ class RadioSource:
         names = np.array(catalog['_name'])
         rejected = np.array(catalog['rejected'])
         
-        if skip:
+        if skip_rejects:
             accepted_indices = np.where(catalog['rejected'] == 0)[0]
             snr_vals = snr_vals[accepted_indices]
             cutout_data = cutout_data[accepted_indices]
@@ -546,10 +554,7 @@ class RadioSource:
         if threshold is None:
             threshold = self.threshold
       
-        try:
-            snrs = self.snr
-        except AttributeError:
-            snrs = self.get_snr()
+        snrs = self.get_snr()
             
         try:
             self.catalog['rejected'] = np.zeros(len(self.catalog), dtype=int)

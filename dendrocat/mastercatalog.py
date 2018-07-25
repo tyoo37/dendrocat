@@ -4,10 +4,11 @@ import numpy as np
 import astropy.units as u
 from copy import deepcopy
 import matplotlib.pyplot as plt
+from astropy.coordinates import SkyCoord, Angle
 
 if __package__ == '':
     __package__ = 'dendrocat'
-from .utils import rms, _matcher, specindex, findrow
+from .utils import rms, _matcher, specindex, findrow, check_units
 from .radiosource import RadioSource
 from .aperture import ellipse, annulus
 
@@ -320,10 +321,12 @@ class MasterCatalog:
         
         nus = []
         freq_ids = []
+        image_stds = []
         for obj in self.__dict__.values():
             if isinstance(obj, RadioSource):
                 nus.append(obj.nu.to(u.GHz).value)
                 freq_ids.append(obj.freq_id)
+                image_stds.append(np.std(obj.data))
         
         apname = aperture.__name__
         
@@ -354,7 +357,7 @@ class MasterCatalog:
         fig, ax = plt.subplots()
         
         for i in range(len(fluxes)):
-            if fluxes[i] < 3.*errs[i]:
+            if fluxes[i] < 3.*errs[i] and fluxes[i] < 3.*image_stds[i]:
                 ax.scatter(nus[i], errs[i], marker='v', color='k', zorder=3, label=r'1 $\sigma$')
                 ax.scatter(nus[i], 2.*errs[i], marker='v', color='darkred', zorder=3, label=r'2 $\sigma$')
                 ax.scatter(nus[i], 3.*errs[i], marker='v', color='red', zorder=3, label=r'3 $\sigma$')
@@ -395,4 +398,50 @@ class MasterCatalog:
             ax.savefig(outfile, dpi=300, bbox_inches='tight')
         
         return nus, fluxes, errs
+
+
+    def catalog_match(self, catalog, ra_colname='RA', dec_colname='DEC', 
+                      tolerance=0.1*u.arcsec, skip_rejects=True)
+        '''
+        Make matches between the master catalog and an external catalog.
+        
+        Parameters
+        ----------
+        catalog : astropy.table.Table object
+            The external catalog to use for source matching.
+        ra_colname : string
+            The name of the column for the right ascension coordinate in the
+            external catalog. Default is 'RA'.
+        dec_colname : string
+            The name of the column for the declination coordintae in the 
+            external catalog. Default is 'DEC'.
+        tolerance : astropy.units.quantity.Quantity
+            The maximum sky distance between a master catalog source and an
+            external catalog source for a match to be made.
             
+        Returns
+        ----------
+        Tuple of master catalog : astropy.table.Table, 
+        external matches : astropy.table.Table
+        '''
+        
+        ra = check_units(catalog[ra_colname])
+        dec = check_units(catalog[dec_colname])
+        
+        selfra = check_units(self.catalog['x_cen'])
+        selfdec = check_units(self.catalog['y_cen'])
+        
+        coords = SkyCoord(ra=ra, dec=dec)
+        selfcoords = SkyCoord(ra=selfra, dec=selfdec)
+        
+        if len(coords) < len(selfcoords):
+            idx, d2d, d3d = coords.match_to_catalog_sky(selfcoords)
+        else:
+            idx, d2d, d3d = selfcoords.match_to_catalog_sky(coords)
+        matched = [d2d < tolerance]
+        
+        return self.catalog[matched], catalog[idx][matched]
+        
+        
+        
+        

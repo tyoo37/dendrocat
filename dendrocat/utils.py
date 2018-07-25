@@ -22,11 +22,37 @@ def rms(x):
     return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
 
 def check_units(quantity, unit=u.deg):
-    if unit.is_equivalent(quantity):
-        return quantity.to(unit)
+    if isinstance(quantity, Column):
+        name = quantity.name
+        if quantity.unit is None:
+            quantity.unit = unit
+            warnings.warn("Assuming quantity is in {}".format(unit))
+            return Column(quantity, name=name)
+        elif unit.is_equivalent(quantity.unit):
+            return Column(quantity.to(unit), name=name)
+        else:
+            warnings.warn('Non-equivalent unit already exists.')
+            return Column(quantity, name=name)
+    elif isinstance(quantity, MaskedColumn):
+        name = quantity.name
+        if quantity.unit is None:
+            quantity.unit = unit
+            warnings.warn("Assuming quantity is in {}".format(unit))
+            return MaskedColumn(quantity, name=name)
+        elif unit.is_equivalent(quantity.unit):
+            return MaskedColumn(quantity.to(unit), name=name)
+        else:
+            warnings.warn('Non-equivalent unit already exists.')
+            return MaskedColumn(quantity, name=name)
     else:
-        return quantity * u.Unit(unit)
-        warnings.warn("Assuming quantity is in {}".format(unit))
+        if unit.is_equivalent(quantity):
+            return quantity.to(unit)
+        elif hasattr(quantity, 'unit'):
+            warnings.warn('Non-equivalent unit already exists.')
+            return quantity
+        else:
+            return quantity * u.Unit(unit)
+            warnings.warn("Assuming quantity is in {}".format(unit))
 
 def commonbeam(major1, minor1, pa1, major2, minor2, pa2):
     """

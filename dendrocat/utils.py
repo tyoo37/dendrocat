@@ -219,4 +219,35 @@ def _matcher(obj1, obj2, verbose=True):
     stack['_index'] = range(len(stack))
     
     return stack
+    
+
+def process_external_cat(cat, freq_colname=None, flux_sum_colname=None, 
+                         flux_peak_colname=None, ):
+    '''
+    Split a catalog by frequency, to enable better source matching.
+    
+    Parameters 
+    ----------
+    cat : astropy.table.Table object
+        The catalog to split.
+    freq_colname : string
+        The column name of the frequencies in the catalog, by which the catalog
+        will be split up.
+    '''
+    
+    catalogs = []
+    
+    for freq in set(list(cat[freq_colname])):
+        catalog = cat[cat[freq_colname]==freq]
+        
+        freq = check_units(freq, u.GHz)
+        freq_id = '{:.0f}'.format(np.round(freq)).replace(' ', '')
+        
+        for col in catalog.colnames:
+            catalog.rename_column(col, freq_id+'_'+col)
+        
+        catalogs.append(catalog)
+        
+    return catalogs
+        
 

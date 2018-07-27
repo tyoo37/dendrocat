@@ -14,7 +14,7 @@
     - [X] Plot three arrows for 1, 2, and 3 sigma
  - [X] Preserve original dendrogram _idx, rework to use a different unique identifier for everything else
  - [X] Match sources with external catalogs
- - [ ] Add ability to use external catalog fluxes to extend SED plots
+ - [X] Add ability to use external catalog fluxes to extend SED plots
  - [ ] Support for adding custom sources / ellipses to any source catalog, either by vstacking a source table or inputting ellipse parameters
     - [X] `add_sources` method for RadioSource and MasterCatalog
     - [ ] `add_ellipse` method 

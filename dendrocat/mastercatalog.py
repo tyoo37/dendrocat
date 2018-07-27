@@ -46,7 +46,7 @@ class MasterCatalog:
         if catalog is not None:
             self.catalog = catalog
         self.add_objects(*args)
-
+        self.catalog
 
     def add_objects(self, *args):
         obj_prefix = 'radiosource_'
@@ -210,8 +210,6 @@ class MasterCatalog:
         
         flux1 = []
         flux2 = []
-        npix1 = []
-        npix2 = []
         err1 = []
         err2 = []
         
@@ -228,9 +226,6 @@ class MasterCatalog:
                 flux2.append(catalog['{}_{}_sum'.format(rsobj2.freq_id, 
                                                          aperture.__name__)])
                                      
-            npix1.append(catalog[rsobj1.freq_id+'_'+aperture.__name__+'_npix'])
-            npix2.append(catalog[rsobj2.freq_id+'_'+aperture.__name__+'_npix'])
-        
         err1.append(catalog[rsobj1.freq_id+'_annulus_rms'])
         err2.append(catalog[rsobj2.freq_id+'_annulus_rms'])
         
@@ -316,74 +311,37 @@ class MasterCatalog:
         
         Examples
         ----------
-        
-        tag_nu=['Frequency'], tag_err=['local_rms_noise'], tag_background=None
         '''    
+        row = Table(row, masked=True)
         
         if aperture is None:
             aperture = ellipse
         method = ['peak' if peak else 'sum'][0]
-        
-        nus = []
-        freq_ids = []
-        backgrounds = []
-        for obj in self.__dict__.values():
-            if isinstance(obj, RadioSource):
-                nus.append(check_units(obj.nu, u.GHz).value)
-                freq_ids.append(obj.freq_id)
-                backgrounds.append(np.std(obj.data))
-        
         apname = aperture.__name__
         
-        for freq_id in freq_ids:
-            try:
-                self.catalog['{}_{}_{}'.format(freq_id, apname, method)]
-            except KeyError:
-                self.photometer(aperture)
+        # Temporary fix -- only works if all freq_ids are in GHz
+        freq_ids = []
+        fluxcols = []
+        errcols = []
+        for i, col in enumerate(self.catalog.colnames):
+            if 'GHz' in col:
+                freq_id = col.split('_')[0]
+                if row.mask[col][0] == False:
+                    freq_ids.append(freq_id)
+                    if apname in col and method in col:
+                        fluxcols.append(col)
+                    if 'annulus' in col and 'rms' in col:
+                        errcols.append(col)
                 
-            try:
-                self.catalog['{}_{}_{}'.format(freq_id, 'annulus', method)]
-            except KeyError:
-                self.photometer(annulus)
+        freq_ids = list(set(freq_ids))
+        fluxcols = list(set(fluxcols))
+        errcols = list(set(errcols))
         
-        cols = [s for s in row.colnames if apname in s and method in s]
-        fluxes = [row[col] for col in cols]
+        nus = [s.split('GHz')[0] for s in freq_ids]
+        fluxes = [row[col][0] for col in fluxcols]
+        errs = [row[errcol][0] for errcol in errcols]
         
-        err_cols = [e for e in row.colnames if 'annulus' in e and 'rms' in e]
-        errs = [row[err_col] for err_col in err_cols]
-        
-        # Get fluxes, nus, errs, and backgrounds from external photometry data
-        if tag_flux is not None:
-            ext_fluxes_cols = [s for s in row.colnames if tag_flux in s]
-            ext_fluxes = [row[fluxes_col] for fluxes_col in ext_fluxes_cols]
-        else:
-            ext_fluxes = None
-        
-        if tag_nu is not None:
-            ext_nus_cols = [s for s in row.colnames if tag_nu in s]
-            ext_nus = [row[nus_col] for nus_col in ext_nus_cols]
-        else:
-            ext_nus = None
-            
-        if tag_err is not None:
-            ext_err_cols = [s for s in row.colnames if tag_err in s]
-            ext_errs = [row[err_col] for err_col in ext_err_cols]
-        else:
-            try: 
-                ext_errs = np.zeros(len(ext_fluxes))
-            except TypeError:
-                pass
-            
-        if tag_background is not None:
-            ext_bg_cols = [s for s in row.colnames if tag_background in s]
-            ext_backgrounds = [row[bg_col] for bg_col in ext_bg_cols]
-        else:
-            try:
-                ext_backgrounds = np.full(len(ext_fluxes), 999)
-            except TypeError:
-                pass
-        
-        x = np.linspace(0.8*np.min(nus+ext_nus), 1.1*np.max(nus+ext_nus), 100)
+        x = np.linspace(0.8*np.min(nus), 1.1*np.max(nus), 100)
         ys = []
         
         if alphas:
@@ -395,27 +353,14 @@ class MasterCatalog:
         fig, ax = plt.subplots()
         
         for i in range(len(fluxes)):
-            if fluxes[i] < 3.*errs[i] and fluxes[i] < 3.*backgrounds[i]:
+            if fluxes[i] < 3.*errs[i]:
                 ax.scatter(nus[i], errs[i], marker='v', color='k', zorder=3, label=r'1 $\sigma$')
                 ax.scatter(nus[i], 2.*errs[i], marker='v', color='darkred', zorder=3, label=r'2 $\sigma$')
                 ax.scatter(nus[i], 3.*errs[i], marker='v', color='red', zorder=3, label=r'3 $\sigma$')
             else:
                 ax.errorbar(nus[i], fluxes[i], yerr=errs[i], fmt='o', ms=2, 
                             elinewidth=0.75, color='k', zorder=3,
-                            label='{} aperture {}'.format(apname, method))
-        
-        try:
-            for i in range(len(ext_fluxes)):
-                if ext_fluxes[i] < 3.*ext_errs[i] and ext_fluxes[i] < 3.*ext_backgrounds[i]:
-                    ax.scatter(ext_nus[i], ext_errs[i], marker='v', color='darkblue', zorder=3, label=r'1 $\sigma$')
-                    ax.scatter(ext_nus[i], 2.*ext_errs[i], marker='v', color='blue', zorder=3, label=r'2 $\sigma$')
-                    ax.scatter(ext_nus[i], 3.*ext_errs[i], marker='v', color='lightblue', zorder=3, label=r'3 $\sigma$')
-                else:
-                    ax.errorbar(ext_nus[i], ext_fluxes[i], yerr=ext_errs[i], fmt='o', ms=2, 
-                                elinewidth=0.75, color='darkblue', zorder=3,
-                                label='External Flux')
-        except:
-            pass                 
+                            label='Aperture {}'.format(method))
             
         if ys:
             for i, y in enumerate(ys):                     
@@ -438,8 +383,8 @@ class MasterCatalog:
                 ax.set_ylabel('Flux (Jy)')
         
         ax.set_xticks(nus+ext_nus, ['{} GHz'.format(nu) for nu in nus+ext_nus])
-        ax.set_title('Spectral Energy Distribution for _name={}'
-                     .format(row['_name']))
+        ax.set_title('Spectral Energy Distribution for Source {}'
+                     .format(row['_name'][0]))
                      
         handles, labels = plt.gca().get_legend_handles_labels()
         label = OrderedDict(zip(labels, handles))
@@ -451,60 +396,137 @@ class MasterCatalog:
         return nus, fluxes, errs
 
 
-    def match_external(self, catalog, ra_colname='RA', dec_colname='DEC', 
+    def match_external(self, cat, ra=None, dec=None, freq=None, flux_sum=None, 
+                       flux_peak=None, err=None, shape=None,
                        tolerance=0.1*u.arcsec, skip_rejects=True):
         '''
-        Make matches between the master catalog and an external catalog.
+        A large and frivolous method that serves a very specific purpose.
+        Splits an external catalog by frequency and match each of them to 
+        MasterCatalog sources, collects photometry data from the external 
+        catalog, formats it to use the proper MasterCatalog table headers, and 
+        then adds it (horizontally) to the existing MasterCatalog. Unmatched 
+        entries are masked.
         
         Parameters
         ----------
         catalog : astropy.table.Table object
             The external catalog to use for source matching.
-        ra_colname : string
+        ra : string
             The name of the column for the right ascension coordinate in the
-            external catalog. Default is 'RA'.
-        dec_colname : string
-            The name of the column for the declination coordintae in the 
-            external catalog. Default is 'DEC'.
+            external catalog.
+        dec : string
+            The name of the column for the declination coordinate in the 
+            external catalog.
+        freq : str or float
+            Either the column name of the frequencies in the catalog by which 
+            the catalog will be split up, or a float specifying the frequency 
+            of every entry in the catalog in GHz.
+        flux_sum : str
+            The name of the column for the aperture flux sum in the external
+            catalog.
+        flux_peak : str
+            The name of the column for the peak flux in the external catalog.
+        err : str
+            The name of the column for the error in the external catalog.
+        shape : str
+            The name of the dendrocat.aperture shape to 'imitate' when adding
+            the new catalog columns. Must match the aperture shape of any 
+            existing photometry from the MasterCatalog you might want to use.           
         tolerance : astropy.units.quantity.Quantity
             The maximum sky distance between a master catalog source and an
             external catalog source for a match to be made.
+        skip_rejects : bool, optional
+            If enabled, rejected sources from the MasterCatalog will not be
+            matched. Default is True.
             
         Returns
         ----------
-        matched : astropy.table.Table
+        astropy.table.Table
             A copy of the original MasterCatalog.catalog, extended by columns
             from the external catalog. Non-matched entries under external
             columns are masked.
-        '''
-        for col in catalog.colnames:
-            if ra_colname in col:
-                ra_colname = col
-            if dec_colname in col:
-                dec_colname = col
-
-        ra = check_units(catalog[ra_colname])
-        dec = check_units(catalog[dec_colname])
+        ''' 
+        catalogs = []
+        freq_ids = []
         
-        selfra = check_units(self.catalog['x_cen'])
-        selfdec = check_units(self.catalog['y_cen'])
+        if shape is None:
+            shape = 'ellipse'
         
-        coords = SkyCoord(ra=ra, dec=dec)
-        selfcoords = SkyCoord(ra=selfra, dec=selfdec)
+        if type(freq) is float or type(freq) is int: # not yet debugged
+            f_GHz = check_units(freq, u.GHz)
+            freq_id = '{:.0f}'.format(np.round(f_GHz)).replace(' ', '')
+            freq_ids.append(freq_id)
+            new_cat = Table(masked=True)
+            ### Finish coding this
+            
+        elif type(freq) is str:
+            for f in set(list(cat[freq])):
+                catalog = cat[cat[freq]==f]
+                newcat = Table(masked=True)
+                f_GHz = check_units(f, u.GHz)
+                freq_id = '{:.1f}'.format(np.round(f_GHz)).replace(' ', '')
+                freq_ids.append(freq_id)
+                
+                for col in catalog.colnames:
+                    if flux_sum is not None:
+                        if flux_sum in col:
+                            newsum = MaskedColumn(
+                                         data=catalog[col],
+                                         name=freq_id+'_'+shape+'_sum')
+                            newcat.add_column(newsum)
+                    if flux_peak is not None:
+                        if flux_peak in col:
+                            newpeak = MaskedColumn(
+                                          data=catalog[col],
+                                          name=freq_id+'_'+shape+'_peak')
+                            newcat.add_column(newpeak)
+                    if err is not None:
+                        if err in col:
+                            newerr = MaskedColumn(
+                                         data=catalog[col],
+                                         name=freq_id+'_'+shape+'_err')
+                            newcat.add_column(newerr)
+                    if ra is not None:
+                        if ra in col:
+                            newra = MaskedColumn(data=catalog[col],
+                                                  name='x_cen')
+                            newcat.add_column(newra)
+                    if dec is not None:
+                        if dec in col:
+                            newdec = MaskedColumn(data=catalog[col], 
+                                                   name='y_cen')
+                            newcat.add_column(newdec)
+                            
+                catalogs.append(newcat)
+            
+        current_table = deepcopy(self.catalog)
         
-        try:
-            idx, d2d, d3d = selfcoords.match_to_catalog_sky(coords)
-        except IndexError:
-            return
-        matched = [d2d < tolerance]
-        
-        colnames =  ['_idx', '_index', '_name', 'area_ellipse', 'area_exact',
-                     'major_fwhm', 'minor_fwhm', 'position_angle', 'radius',                  
-                     'rejected', 'x_cen', 'y_cen']
-        
-        external_table = Table(catalog[idx], masked=True)
-        external_table.mask[~matched[0]] = True
-        return hstack([self.catalog, external_table])
+        for i, catalog in enumerate(catalogs):
+            
+            freq_id = freq_ids[i]
+            
+            ra = check_units(catalog['x_cen'])
+            dec = check_units(catalog['y_cen'])
+            
+            selfra = check_units(self.catalog['x_cen'])
+            selfdec = check_units(self.catalog['y_cen'])
+            
+            coords = SkyCoord(ra=ra, dec=dec)
+            selfcoords = SkyCoord(ra=selfra, dec=selfdec)
+            
+            try:
+                idx, d2d, d3d = selfcoords.match_to_catalog_sky(coords)
+            except IndexError:
+                continue
+            matched = [d2d < tolerance]
+                               
+            ext_colnames = [c for c in catalog.colnames if freq_id in c]
+            
+            external_table = Table(catalog[ext_colnames][idx], masked=True)
+            external_table.mask[~matched[0]] = True
+            current_table = hstack([current_table, external_table])
+            
+            return current_table
             
         
         

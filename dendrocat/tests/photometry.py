@@ -31,7 +31,7 @@ mc.catalog['_name'][mc.catalog['_name'] == '93045'] = 'w51e2w'
 
 dendrocat.utils.save_regions(mc.catalog, '/users/bmcclell/nrao/reg/mc_regions.reg')
 
-mc.catalog.write('/users/bmcclell/nrao/cat/45-93-226GHz_photometered_adjustedRADEC.dat', format='ascii')
+mc.catalog.write('/users/bmcclell/nrao/cat/45-93-226GHz_photometered_adjustedRADEC.dat', format='ascii', overwrite=True)
 
 
 

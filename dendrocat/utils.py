@@ -1,7 +1,7 @@
 import numpy as np
 from radio_beam import Beams
 import astropy.units as u
-from astropy.table import MaskedColumn, Column, vstack
+from astropy.table import MaskedColumn, Column, vstack, Table
 from astropy.utils.console import ProgressBar
 from copy import deepcopy
 import warnings
@@ -213,7 +213,7 @@ def _matcher(obj1, obj2, verbose=True):
     
     # Fill masked detection column fields with 'False'
     for colname in stack.colnames:
-        if colname.split('_')[0] == 'detected':
+        if 'detected' in colname:
             stack[colname].fill_value = 0
 
     stack['_index'] = range(len(stack))
@@ -221,8 +221,8 @@ def _matcher(obj1, obj2, verbose=True):
     return stack
     
 
-def process_external_cat(cat, freq_colname=None, flux_sum_colname=None, 
-                         flux_peak_colname=None, ):
+def match_external_cat(cat, shape=None, freq=None, flux_sum=None, flux_peak=None, 
+                         err=None, ra=None, dec=None, ):
     '''
     Split a catalog by frequency, to enable better source matching.
     
@@ -230,23 +230,66 @@ def process_external_cat(cat, freq_colname=None, flux_sum_colname=None,
     ----------
     cat : astropy.table.Table object
         The catalog to split.
-    freq_colname : string
-        The column name of the frequencies in the catalog, by which the catalog
-        will be split up.
+    freq : string or float
+        Either the column name of the frequencies in the catalog by which the 
+        catalog will be split up, or a float specifying the frequency of every
+        entry in the catalog in GHz.
     '''
     
     catalogs = []
     
-    for freq in set(list(cat[freq_colname])):
-        catalog = cat[cat[freq_colname]==freq]
+    if type(freq) is float or type(freq) is int:
+        f_GHz = check_units(freq, u.GHz)
+        freq_id = '{:.0f}'.format(np.round(f_GHz)).replace(' ', '')
+        new_cat = Table(masked=True)
+        for col in cat.colnames:
+            if flux_sum is not None:
+                if flux_sum in col:
+                    newsum = MaskedColumn(data=cat[col],
+                                              name=freq_id+'_'+shape+'_sum')
+                    new_cat.add_column(newsum)
+            if flux_peak is not None:
+                if flux_peak in col:
+                    newpeak = MaskedColumn(data=cat[col],
+                                           name=freq_id+'_'+shape+'_peak')
+                    new_cat.add_column(newpeak)
+            if err is not None:
+                if err in col:
+                    newerr = MaskedColumn(data=cat[col],
+                                          name=freq_id+'_annulus_rms')
+                    new_cat.add_column(newerr)
+    
+        catalogs.append(cat)
         
-        freq = check_units(freq, u.GHz)
-        freq_id = '{:.0f}'.format(np.round(freq)).replace(' ', '')
-        
-        for col in catalog.colnames:
-            catalog.rename_column(col, freq_id+'_'+col)
-        
-        catalogs.append(catalog)
+    elif type(freq) is str:
+        for f in set(list(cat[freq_colname])):
+            catalog = cat[cat[freq_colname]==f]
+            new_cat = Table(masked=True)
+            
+            f_GHz = check_units(f, u.GHz)
+            freq_id = '{:.0f}'.format(np.round(f_GHz)).replace(' ', '')
+            
+            for col in catalog.colnames:
+                if flux_sum is not None:
+                    if flux_sum in col:
+                        newsum = MaskedColumn(data=catalog[col],
+                                              name=freq_id+'_'+shape+'_sum')
+                        new_cat.add_column(newsum)
+                if flux_peak is not None:
+                    if flux_peak in col:
+                        newpeak = MaskedColumn(data=catalog[col],
+                                               name=freq_id+'_'+shape+'_peak')
+                        new_cat.add_column(newpeak)
+                if err is not None:
+                    if err in col:
+                        newerr = MaskedColumn(data=catalog[col],
+                                              name=freq_id+'_annulus_rms')
+                        new_cat.add_column(newerr)
+            catalogs.append(catalog)
+    
+    else:
+        warnings.warn('Frequency not specified. Returning original catalog.')
+        catalogs.append(cat)
         
     return catalogs
         

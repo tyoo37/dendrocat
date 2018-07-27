@@ -33,7 +33,7 @@ class RadioSource:
         region_id : str
             An identifier specifying what sky object the radio image contains.
         freq_id : str, optional
-            An identifier specifying the observation frequency (Ex: 226GHz). 
+            An identifier specifying the observation frequency (Ex: 226.0GHz). 
             If not specified, it will be generated from the FITS image header.
         """
 
@@ -91,7 +91,7 @@ class RadioSource:
                 
                 # Create a frequency identifier from nu
                 if not self.freq_id:
-                    self.freq_id = ('{:.0f}'.format(np.round(self.nu
+                    self.freq_id = ('{:.1f}'.format(np.round(self.nu
                                             .to(u.GHz))).replace(' ', ''))
                 self.set_metadata()
                 
@@ -181,34 +181,35 @@ class RadioSource:
                 dendrogram = self.to_dendrogram()
                 
         cat = pp_catalog(dendrogram.leaves, self.metadata)
-        cat.add_column(Column(length=len(cat), shape=10, dtype=str), 
+        cat.add_column(Column(length=len(cat), shape=20, dtype=str), 
                        name='_name')
         cat.add_column(Column(data=range(len(cat))), name='_index')
+        cat = cat[sorted(cat.colnames)]
         
         for i, idx in enumerate(cat['_idx']):
             cat['_name'][i] = str('{:.0f}{:03d}'.format(
                                        np.round(self.nu.to(u.GHz).value), idx))
-    
+        
         try:
             cat['major_sigma'] = cat['major_sigma']*np.sqrt(8*np.log(2))
             cat['minor_sigma'] = cat['minor_sigma']*np.sqrt(8*np.log(2))
             cat.rename_column('major_sigma', 'major_fwhm')
             cat.rename_column('minor_sigma', 'minor_fwhm')
-            cat.rename_column('flux', 'dend_flux_{}'.format(self.freq_id))
+            cat.rename_column('flux', '{}_dend_flux'.format(self.freq_id))
         except KeyError:
             pass
         
         try:
             cat.remove_column('rejected')
-            cat.remove_column('detected_'+self.freq_id)
+            cat.remove_column(self.freq_id+'_detected')
         except KeyError:
             pass
             
         cat.add_column(Column(np.zeros(len(cat)), dtype=int), name='rejected')
         cat.add_column(Column(np.ones(len(cat)), dtype=int), 
-                       name='detected_'+self.freq_id)
+                       name=self.freq_id+'_detected')
                        
-        self.catalog = Table(cat, masked=True)[sorted(list(cat.colnames))]
+        self.catalog = Table(cat, masked=True)
         return Table(cat, masked=True)
 
 
@@ -405,10 +406,10 @@ class RadioSource:
         if save:
             self.snr = np.array(snr_vals)
             try:
-                catalog.remove_column('snr_'+self.freq_id)
+                catalog.remove_column(self.freq_id+'_snr')
             except KeyError:
                 pass
-            catalog.add_column(Column(snr_vals), name='snr_'+self.freq_id)
+            catalog.add_column(Column(snr_vals), name=self.freq_id+'_snr')
             
         return np.array(snr_vals)
     

@@ -42,3 +42,4 @@
  - Some sources disappear when matched
     - [SOLVED] Matching algorithm was matching accepted sources with rejected sources, overwriting the accepted sources so they don't appear in the master catalog. Fixed by only matching accepted sources to each other.
  - Bright sources with contaminated annululi are mistaken for upper limit detections due to their low SN
+ - `MasterCatalog.match_external` only adds one frequency's worth of photometry data

@@ -15,10 +15,13 @@
  - [X] Preserve original dendrogram _idx, rework to use a different unique identifier for everything else
  - [X] Match sources with external catalogs
  - [X] Add ability to use external catalog fluxes to extend SED plots
- - [ ] Support for adding custom sources / ellipses to any source catalog, either by vstacking a source table or inputting ellipse parameters
+ - [X] Support for adding custom sources to any source catalog, by vstacking a source table
     - [X] `add_sources` method for RadioSource and MasterCatalog
-    - [ ] `add_ellipse` method 
+ - [X] Combined aperture grid and SED plots
+ - [ ] Add function for custom source names
+ - [ ] `match_external` takes an argument for source names -- if a match is made, the source name is replaced
  - [ ] Utils functions to grab a specific source by name, idx, etc (indexing astropy tables is clumsy)
+ - [ ] Utils function to get a catalog's non-rejected sources (i.e., `utils.nonrejected(catalog)`)
  - [ ] Save and load object information with pickle
  - [ ] Implement circular apertures of different radii
     - [ ] Function name changes with radius

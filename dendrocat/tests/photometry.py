@@ -5,11 +5,11 @@ from astropy.table import Table
 
 
 rs1 = dendrocat.RadioSource(fits.open('/lustre/aoc/students/bmcclell/w51/W51e2_cont_briggsSC_tclean.image.fits.gz'))
-rs2 = dendrocat.RadioSource(fits.open('/users/bmcclell/dendrocat/dendrocat/data/W51e2_band3_93GHz_adjustedRADEC.fits'))
-rs3 = dendrocat.RadioSource(fits.open('/users/bmcclell/dendrocat/dendrocat/data/W51e2w_QbandAarray_adjustedRADEC.fits'))
+rs2 = dendrocat.RadioSource(fits.open('/users/bmcclell/Data/W51e2_band3_93GHz_adjustedRADEC.fits'))
+rs3 = dendrocat.RadioSource(fits.open('/users/bmcclell/Data/W51e2w_QbandAarray_adjustedRADEC.fits'))
 
-rs3.nu = 45*u.GHz
-rs3.freq_id = '45GHz'
+rs3.nu = 45.0*u.GHz
+rs3.freq_id = '45.0GHz'
 rs3.set_metadata()
 
 rs1.autoreject()
@@ -28,6 +28,7 @@ mc.photometer(dendrocat.annulus)
 
 mc.catalog['_name'][mc.catalog['_name'] == '226083'] = 'w51e2e'
 mc.catalog['_name'][mc.catalog['_name'] == '93045'] = 'w51e2w'
+mc.catalog['_name'][mc.catalog['_name'] == '226040'] = 'w51e8'
 
 dendrocat.utils.save_regions(mc.catalog, '/users/bmcclell/nrao/reg/mc_regions.reg')
 

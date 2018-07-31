@@ -564,7 +564,7 @@ class RadioSource:
                                     name='rejected')
     
         for i in range(len(self.catalog)):
-            if snrs[i] <= threshold:
+            if snrs[i] <= threshold or np.isnan(snrs[i]):
                 self.catalog['rejected'][i] = 1
                     
 

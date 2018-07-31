@@ -3,13 +3,13 @@ from radio_beam import Beams
 import astropy.units as u
 from astropy.table import MaskedColumn, Column, vstack, Table
 from astropy.utils.console import ProgressBar
+import matplotlib.pyplot as plt
+from collections import OrderedDict
 from copy import deepcopy
 import warnings
 
-def mask(reg, cutout):
-    n = cutout.shape[0]
-    mask = reg.to_mask(mode='center')
-    return np.array(mask.to_image((n, n)), dtype='int')
+
+from .aperture import ellipse, annulus
     
 def specindex(nu1, nu2, f1, alpha):
     return f1*(nu2/nu1)**(alpha) 
@@ -292,5 +292,111 @@ def match_external_cat(cat, shape=None, freq=None, flux_sum=None, flux_peak=None
         catalogs.append(cat)
         
     return catalogs
+ 
+ 
+def plot_sed(row, catalog, aperture=None, alphas=None, peak=False, log=True, 
+             outfile=None):
+    '''
+    Plot a spectral energy distribution for a specific source in the 
+    catalog.
+    
+    Parameters
+    ----------
+    idx : str
+        The identifier used to specify a row in the MasterCatalog.
+    alphas : list of float, optional
+        Spectral indices to plot under flux data.
+    log : bool, optional
+        If enabled, spectral energy distribution will be plotted on a log 
+        scale.
+    tag_ : string
+        tag to search for external photometry data.
+    
+    
+    Examples
+    ----------
+    '''  
+    row = Table(row, masked=True)
+    
+    if aperture is None:
+        aperture = ellipse
+    method = ['peak' if peak else 'sum'][0]
+    apname = aperture.__name__
+    
+    # Temporary fix -- only works if all freq_ids are in GHz
+    freq_ids = []
+    fluxcols = []
+    errcols = []
+    for i, col in enumerate(catalog.colnames):
+        if 'GHz' in col:
+            freq_id = col.split('_')[0]
+            if row.mask[col][0] == False:
+                freq_ids.append(freq_id)
+                if apname in col and method in col:
+                    fluxcols.append(col)
+                if 'annulus' in col and 'rms' in col:
+                    errcols.append(col)
+                if 'ellipse' in col and 'err' in col:
+                    errcols.append(col)
+    
+    freq_ids = list(OrderedDict.fromkeys(freq_ids))
+    fluxcols = list(OrderedDict.fromkeys(fluxcols))
+    errcols = list(OrderedDict.fromkeys(errcols))
+    
+    nus = [float(s.split('GHz')[0]) for s in freq_ids]
+    fluxes = [row[col][0] for col in fluxcols]
+    errs = [row[errcol][0] for errcol in errcols]
+    
+    x = np.linspace(0.8*np.min(nus), 1.1*np.max(nus), 100)
+    ys = []
+    
+    if alphas:
+        k = int(np.floor(len(fluxes)/2))
+        for a in alphas:
+            constant = fluxes[k]/(nus[k]**a)
+            ys.append(constant*(x**a))
+    
+    fig, ax = plt.subplots()
+    
+    for i in range(len(fluxes)):
+        if fluxes[i] < 3.*errs[i]:
+            ax.scatter(nus[i], errs[i], marker='v', color='k', zorder=3, label=r'1 $\sigma$')
+            ax.scatter(nus[i], 2.*errs[i], marker='v', color='darkred', zorder=3, label=r'2 $\sigma$')
+            ax.scatter(nus[i], 3.*errs[i], marker='v', color='red', zorder=3, label=r'3 $\sigma$')
+        else:
+            ax.errorbar(nus[i], fluxes[i], yerr=errs[i], fmt='o', ms=2, 
+                        elinewidth=0.75, color='k', zorder=3,
+                        label='Aperture {}'.format(method))
         
+    if ys:
+        for i, y in enumerate(ys):                     
+            ax.plot(x, y, '--',
+                    label=r'$\alpha$ = {}'.format(alphas[i], zorder=2))
+            
+    if log is True:
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.set_xlabel('Log Frequency (GHz)')
+        if peak is True:
+            ax.set_ylabel('Log Peak Flux (Jy)')
+        else:
+            ax.set_ylabel('Log Flux (Jy)')
+    else:
+        ax.set_xlabel('Frequency (GHz)')
+        if peak is True:
+            ax.set_ylabel('Peak Flux (Jy)')
+        else:
+            ax.set_ylabel('Flux (Jy)')
+    
+    ax.set_title('Spectral Energy Distribution for Source {}'
+                 .format(row['_name'][0]))
+                 
+    handles, labels = plt.gca().get_legend_handles_labels()
+    label = OrderedDict(zip(labels, handles))
+    ax.legend(label.values(), label.keys())
+    
+    if outfile is not None:
+        ax.savefig(outfile, dpi=300, bbox_inches='tight')
+    
+    return nus, fluxes, errs
 

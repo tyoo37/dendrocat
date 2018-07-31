@@ -4,6 +4,7 @@ import numpy as np
 import astropy.units as u
 from copy import deepcopy
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gs
 from astropy.coordinates import SkyCoord, Angle
 
 if __package__ == '':
@@ -168,7 +169,7 @@ class MasterCatalog:
                     pass
             
             
-    def ffplot(self, rsobj1, rsobj2, apertures=[], specs=None, peak=False,
+    def ffplot(self, rsobj1, rsobj2, apertures=[], alphas=None, peak=False,
                label=False, log=True, outfile=None):
            
         if rsobj1.nu > rsobj2.nu:
@@ -178,8 +179,8 @@ class MasterCatalog:
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
         
         apertures = list(set(apertures)|{ellipse, annulus})
-        if specs is None:
-            specs = [1, 2, 3]
+        if alphas is None:
+            alphas = [1, 2, 3]
         
         cols = []
         for aperture in apertures:
@@ -234,8 +235,8 @@ class MasterCatalog:
         xflux = np.linspace(np.min(flux1), np.max(flux1), 10)
         yfluxes = []
         
-        for spec in specs:
-            yfluxes.append(specindex(rsobj1.nu, rsobj2.nu, xflux, spec))
+        for alpha in alphas:
+            yfluxes.append(specindex(rsobj1.nu, rsobj2.nu, xflux, alpha))
         
         n_images = len(apertures)
         xplots = int(np.around(np.sqrt(n_images)))
@@ -250,7 +251,7 @@ class MasterCatalog:
                         
             for j, yflux in enumerate(yfluxes):
                 ax.plot(xflux, yflux, '--', color=colors[np.negative(j)], 
-                        label='Spectral Index = {}'.format(specs[j]))
+                        label='Spectral Index = {}'.format(alphas[j]))
             
             ax.set_xticks([])
             ax.set_yticks([])
@@ -287,113 +288,6 @@ class MasterCatalog:
             
             if outfile is not None:
                 plt.savefig(outfile, dpi=300, bbox_inches='tight')
-    
-    
-    def plot_sed(self, row, aperture=None, alphas=None, peak=False, log=True, 
-                 outfile=None, tag_flux=None, tag_nu=None, tag_err=None,
-                 tag_background=None):
-        '''
-        Plot a spectral energy distribution for a specific source in the 
-        catalog.
-        
-        Parameters
-        ----------
-        idx : str
-            The identifier used to specify a row in the MasterCatalog.
-        alphas : list of float, optional
-            Spectral indices to plot under flux data.
-        log : bool, optional
-            If enabled, spectral energy distribution will be plotted on a log 
-            scale.
-        tag_ : string
-            tag to search for external photometry data.
-        
-        
-        Examples
-        ----------
-        '''    
-        row = Table(row, masked=True)
-        
-        if aperture is None:
-            aperture = ellipse
-        method = ['peak' if peak else 'sum'][0]
-        apname = aperture.__name__
-        
-        # Temporary fix -- only works if all freq_ids are in GHz
-        freq_ids = []
-        fluxcols = []
-        errcols = []
-        for i, col in enumerate(self.catalog.colnames):
-            if 'GHz' in col:
-                freq_id = col.split('_')[0]
-                if row.mask[col][0] == False:
-                    freq_ids.append(freq_id)
-                    if apname in col and method in col:
-                        fluxcols.append(col)
-                    if 'annulus' in col and 'rms' in col:
-                        errcols.append(col)
-                
-        freq_ids = list(set(freq_ids))
-        fluxcols = list(set(fluxcols))
-        errcols = list(set(errcols))
-        
-        nus = [s.split('GHz')[0] for s in freq_ids]
-        fluxes = [row[col][0] for col in fluxcols]
-        errs = [row[errcol][0] for errcol in errcols]
-        
-        x = np.linspace(0.8*np.min(nus), 1.1*np.max(nus), 100)
-        ys = []
-        
-        if alphas:
-            k = int(np.floor(len(fluxes)/2))
-            for a in alphas:
-                constant = fluxes[k]/(nus[k]**a)
-                ys.append(constant*(x**a))
-        
-        fig, ax = plt.subplots()
-        
-        for i in range(len(fluxes)):
-            if fluxes[i] < 3.*errs[i]:
-                ax.scatter(nus[i], errs[i], marker='v', color='k', zorder=3, label=r'1 $\sigma$')
-                ax.scatter(nus[i], 2.*errs[i], marker='v', color='darkred', zorder=3, label=r'2 $\sigma$')
-                ax.scatter(nus[i], 3.*errs[i], marker='v', color='red', zorder=3, label=r'3 $\sigma$')
-            else:
-                ax.errorbar(nus[i], fluxes[i], yerr=errs[i], fmt='o', ms=2, 
-                            elinewidth=0.75, color='k', zorder=3,
-                            label='Aperture {}'.format(method))
-            
-        if ys:
-            for i, y in enumerate(ys):                     
-                ax.plot(x, y, '--',
-                        label=r'$\alpha$ = {}'.format(alphas[i], zorder=2))
-                
-        if log is True:
-            ax.set_xscale('log')
-            ax.set_yscale('log')
-            ax.set_xlabel('Log Frequency (GHz)')
-            if peak is True:
-                ax.set_ylabel('Log Peak Flux (Jy)')
-            else:
-                ax.set_ylabel('Log Flux (Jy)')
-        else:
-            ax.set_xlabel('Frequency (GHz)')
-            if peak is True:
-                ax.set_ylabel('Peak Flux (Jy)')
-            else:
-                ax.set_ylabel('Flux (Jy)')
-        
-        ax.set_xticks(nus+ext_nus, ['{} GHz'.format(nu) for nu in nus+ext_nus])
-        ax.set_title('Spectral Energy Distribution for Source {}'
-                     .format(row['_name'][0]))
-                     
-        handles, labels = plt.gca().get_legend_handles_labels()
-        label = OrderedDict(zip(labels, handles))
-        ax.legend(label.values(), label.keys())
-        
-        if outfile is not None:
-            ax.savefig(outfile, dpi=300, bbox_inches='tight')
-        
-        return nus, fluxes, errs
 
 
     def match_external(self, cat, ra=None, dec=None, freq=None, flux_sum=None, 
@@ -508,8 +402,8 @@ class MasterCatalog:
             ra = check_units(catalog['x_cen'])
             dec = check_units(catalog['y_cen'])
             
-            selfra = check_units(self.catalog['x_cen'])
-            selfdec = check_units(self.catalog['y_cen'])
+            selfra = check_units(current_table['x_cen'])
+            selfdec = check_units(current_table['y_cen'])
             
             coords = SkyCoord(ra=ra, dec=dec)
             selfcoords = SkyCoord(ra=selfra, dec=selfdec)
@@ -526,8 +420,146 @@ class MasterCatalog:
             external_table.mask[~matched[0]] = True
             current_table = hstack([current_table, external_table])
             
-            return current_table
+        return current_table
             
+    def plotsedgrid(self, row, alphas=None, path=None):
+        row = Table(row, masked=True)
+        apname = 'ellipse'
+        method = 'sum'
         
+        rsobjs = []
+        for i, obj in enumerate(self.__dict__.values()):
+            if isinstance(obj, RadioSource):
+                rsobjs.append(obj)
+        rsnus = [rsobj.nu for rsobj in rsobjs]
+        rsnus, rsobjs = [list(s) for s in zip(*sorted(zip(rsnus, rsobjs)))]
+        
+        freq_ids = []
+        nus = []
+        fluxcols = []
+        errcols = []
+
+        for col in self.catalog.colnames:
+            if 'GHz' in col:
+                freq_id = col.split('_')[0]
+                if row.mask[col][0] == False:
+                    if apname in col and method in col:
+                        freq_ids.append(freq_id)
+                        fluxcols.append(col)
+                    if 'annulus' in col and 'rms' in col:
+                        errcols.append(col)
+                    if 'ellipse' in col and 'err' in col:
+                        errcols.append(col)
+                        
+        freq_ids = list(OrderedDict.fromkeys(freq_ids))
+        fluxcols = list(OrderedDict.fromkeys(fluxcols))
+        errcols = list(OrderedDict.fromkeys(errcols))
+        
+        nus = [float(s.split('GHz')[0]) for s in freq_ids]
+        nus, sort = [list(s) for s in zip(*sorted(zip(nus, range(len(nus)))))]
+        freq_ids = np.asarray(freq_ids, dtype=object)[sort]
+        fluxcols = np.asarray(fluxcols, dtype=object)[sort]
+        errcols = np.asarray(errcols, dtype=object)[sort]
+        
+        fluxes = [row[col][0] for col in fluxcols]
+        errs = [row[errcol][0] for errcol in errcols]
+        x = np.linspace(0.8*np.min(nus), 1.1*np.max(nus), 100)
+        ys = []
+        if alphas:
+            if len(fluxes) <= 2:
+                for a in alphas:
+                    constant = fluxes[-1]/(nus[-1]**a)
+                    ys.append(constant*(x**a))
+            else:
+                for a in alphas:
+                    constant = np.median(fluxes)/(np.median(nus)**a)
+                    ys.append(constant*(x**a))
+        
+        n_apertureplots = len(rsobjs)
+        grid = gs.GridSpec(n_apertureplots, n_apertureplots, wspace=0.1, hspace=0.4)
+        plt.figure(figsize=(8,10))
+        
+        for i, rsobj in enumerate(rsobjs):
+            
+            cutout, cutout_data = rsobj._make_cutouts(catalog=row, data=rsobj.data)
+            cutout_data = cutout_data.squeeze()
+            ax = plt.subplot(grid[i])
+            ax.imshow(cutout_data, origin='lower')
+            
+            sidelength = np.shape(cutout_data)[1]
+            beam = rsobj.beam.ellipse_to_plot(sidelength-7.5, 7.5, pixscale=rsobj.pixel_scale)
+            beam.set(fill=False, ls='-', ec='darkred')
+            plt.gca().add_artist(beam)
+            
+            apertures = [ellipse, annulus]
+            ap_names = []
+            pixels = []
+            masks = []
+            
+            for aperture in apertures:
+                some_pixels, a_mask = rsobj.get_pixels(aperture,
+                                                       catalog=row,
+                                                       data=rsobj.data,
+                                                       cutouts=cutout)
+                ap_names.append(aperture.__name__)
+                pixels.append(some_pixels)
+                masks.append(a_mask)
+        
+            ellipse_pix = pixels[ap_names.index('ellipse')]
+            annulus_pix = pixels[ap_names.index('annulus')]
+            
+            snr_val = rsobj.get_snr(source=ellipse_pix, background=annulus_pix,
+                                    catalog=row)[0]
+            name = row['_name'][0]
+            for k in range(len(masks)):
+                if path is not None:
+                    ax.imshow(masks[k].squeeze(), origin='lower', cmap='gray', alpha=0.4)
+                else:
+                    ax.imshow(masks[k].squeeze(), origin='lower', cmap='gray', alpha=0.15)
+                
+            plt.text(0, 0, 'SN {:.1f}'.format(snr_val), fontsize=7, color='w', 
+                     ha='left', va='bottom', transform=ax.transAxes)
+            plt.text(0, 1, name, fontsize=7, color='w', ha='left', va='top', 
+                     transform=ax.transAxes)
+            ax.set_title('Freq: {}'.format(freq_ids[i]))
+            ax.set_xticks([])
+            ax.set_yticks([])
+            
+        ax = plt.subplot(grid[n_apertureplots:])
+        for i in range(len(fluxes)):
+            if fluxes[i] < 3.*errs[i]:
+                ax.scatter(nus[i], errs[i], marker='v', color='k', zorder=3, label=r'1 $\sigma$')
+                ax.scatter(nus[i], 2.*errs[i], marker='v', color='darkred', zorder=3, label=r'2 $\sigma$')
+                ax.scatter(nus[i], 3.*errs[i], marker='v', color='red', zorder=3, label=r'3 $\sigma$')
+            else:
+                ax.errorbar(nus[i], fluxes[i], yerr=errs[i], fmt='o', ms=2, 
+                            elinewidth=0.75, color='k', zorder=3,
+                            label='Aperture {}'.format(method))
+            
+        if ys:
+            for i, y in enumerate(ys):                     
+                ax.plot(x, y, '--',
+                        label=r'$\alpha$ = {}'.format(alphas[i], zorder=2))
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.set_xlabel('Log Frequency (GHz)')
+        ax.set_ylabel('Log Flux (Jy)')
+        ax.set_title('Spectral Energy Distribution for Source {}'.format(row['_name'][0]))
+        handles, labels = plt.gca().get_legend_handles_labels()
+        label = OrderedDict(zip(labels, handles))
+        ax.legend(label.values(), label.keys())
+        plt.suptitle('Name: {}'.format(row['_name'][0]))
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.92,
+                            bottom=0.075,
+                            left=0.11,
+                            right=0.94,
+                            hspace=0.2,
+                            wspace=0.2)
+                            
+        if path is not None:
+            plt.savefig('{}SEDgrid_{}.pdf'.format(path, row['_name'][0]), dpi=300, bbox_inches='tight', overwrite=True)       
+        
+        return nus, fluxes, errs
         
         

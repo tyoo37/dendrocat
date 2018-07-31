@@ -13,8 +13,8 @@ def ellipse(source, cutout, obj):
 
     center = regions.PixCoord(cutout.center_cutout[0], cutout.center_cutout[1])
 
-    pix_major = 2.*source['major_fwhm']*u.deg / obj.pixel_scale
-    pix_minor = 2.*source['minor_fwhm']*u.deg / obj.pixel_scale
+    pix_major = (2.*source['major_fwhm']*u.deg / obj.pixel_scale).value
+    pix_minor = (2.*source['minor_fwhm']*u.deg / obj.pixel_scale).value
     pa = source['position_angle']*u.deg
     
     radius = source['major_fwhm'] * u.deg
@@ -30,8 +30,8 @@ def annulus(source, cutout, obj):
     inner_r = source['major_fwhm']*u.deg + obj.annulus_padding
     outer_r = inner_r + obj.annulus_width
     
-    innerann_reg = regions.CirclePixelRegion(center, inner_r/obj.pixel_scale)
-    outerann_reg = regions.CirclePixelRegion(center, outer_r/obj.pixel_scale)
+    innerann_reg = regions.CirclePixelRegion(center, (inner_r/obj.pixel_scale).value)
+    outerann_reg = regions.CirclePixelRegion(center, (outer_r/obj.pixel_scale).value)
     
     annulus_mask = (mask(outerann_reg, cutout) - mask(innerann_reg, cutout))
     return annulus_mask

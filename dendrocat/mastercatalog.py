@@ -5,6 +5,7 @@ import astropy.units as u
 from copy import deepcopy
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gs
+import matplotlib.ticker
 from astropy.coordinates import SkyCoord, Angle
 
 if __package__ == '':
@@ -476,8 +477,8 @@ class MasterCatalog:
                     ys.append(constant*(x**a))
         
         n_apertureplots = len(rsobjs)
-        grid = gs.GridSpec(n_apertureplots, n_apertureplots, wspace=0.1, hspace=0.4)
-        plt.figure(figsize=(8,10))
+        grid = gs.GridSpec(n_apertureplots, n_apertureplots, wspace=0.1, hspace=0.1)
+        plt.figure(figsize=(6,8))
         
         for i, rsobj in enumerate(rsobjs):
             
@@ -488,7 +489,7 @@ class MasterCatalog:
             
             sidelength = np.shape(cutout_data)[1]
             beam = rsobj.beam.ellipse_to_plot(sidelength-7.5, 7.5, pixscale=rsobj.pixel_scale)
-            beam.set(fill=False, ls='-', ec='darkred')
+            beam.set(fill=False, ls='-', ec='red')
             plt.gca().add_artist(beam)
             
             apertures = [ellipse, annulus]
@@ -532,27 +533,31 @@ class MasterCatalog:
                 ax.scatter(nus[i], 2.*errs[i], marker='v', color='darkred', zorder=3, label=r'2 $\sigma$')
                 ax.scatter(nus[i], 3.*errs[i], marker='v', color='red', zorder=3, label=r'3 $\sigma$')
             else:
-                ax.errorbar(nus[i], fluxes[i], yerr=errs[i], fmt='o', ms=2, 
-                            elinewidth=0.75, color='k', zorder=3,
+                ax.errorbar(nus[i], fluxes[i], yerr=errs[i], fmt='o', ms=3, 
+                            elinewidth=1.25, color='k', zorder=3,
                             label='Aperture {}'.format(method))
             
         if ys:
             for i, y in enumerate(ys):                     
-                ax.plot(x, y, '--',
+                ax.plot(x, y, '--', linewidth=1.5,
                         label=r'$\alpha$ = {}'.format(alphas[i], zorder=2))
         ax.set_xscale('log')
         ax.set_yscale('log')
-        ax.set_xlabel('Log Frequency (GHz)')
+        #ax.set_xlabel('Log Frequency (GHz)')
         ax.set_ylabel('Log Flux (Jy)')
         ax.set_title('Spectral Energy Distribution for Source {}'.format(row['_name'][0]))
+        ax.xaxis.set_major_locator(matplotlib.ticker.FixedLocator([int(nu) for nu in nus]))                
+        ax.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter(['{:.0f} GHz'.format(nu) for nu in nus]))
+        ax.xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+        plt.xticks(rotation=-90)
         handles, labels = plt.gca().get_legend_handles_labels()
         label = OrderedDict(zip(labels, handles))
         ax.legend(label.values(), label.keys())
         plt.suptitle('Name: {}'.format(row['_name'][0]))
         plt.tight_layout()
         plt.subplots_adjust(top=0.92,
-                            bottom=0.075,
-                            left=0.11,
+                            bottom=0.105,
+                            left=0.125,
                             right=0.94,
                             hspace=0.2,
                             wspace=0.2)

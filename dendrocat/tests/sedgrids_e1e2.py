@@ -7,12 +7,12 @@ import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 
-e = Table.read('/home/connor/Data/w51e_external_photometered.dat', format='ascii')
+e = Table.read('/users/bmcclell/nrao/cat/w51e_external_photometered.dat', format='ascii')
 
 
-rs1 = dendrocat.RadioSource(fits.open('/home/connor/Data/W51e2_cont_briggsSC_tclean.image.fits.gz'))
-rs2 = dendrocat.RadioSource(fits.open('/home/connor/Data/W51e2_band3_93GHz_adjustedRADEC.fits'))
-rs3 = dendrocat.RadioSource(fits.open('/home/connor/Data/W51e2w_QbandAarray_adjustedRADEC.fits'))
+rs1 = dendrocat.RadioSource(fits.open('/users/bmcclell/Data/W51e2_cont_briggsSC_tclean.image.fits.gz'))
+rs2 = dendrocat.RadioSource(fits.open('/users/bmcclell/Data/W51e2_band3_93GHz_adjustedRADEC.fits'))
+rs3 = dendrocat.RadioSource(fits.open('/users/bmcclell/Data/W51e2w_QbandAarray_adjustedRADEC.fits'))
 
 rs3.nu = 45.0*u.GHz
 rs3.freq_id = '45.0GHz'
@@ -23,7 +23,7 @@ accepted = mc.catalog[mc.catalog['rejected']==0]
 
 for i in range(len(accepted)):
     nus, fluxes, errs = mc.plotsedgrid(accepted[i], alphas=[1, 2, 3], 
-                                       path='/home/connor/Data/SEDS_e1e2/')
+                                       path='/users/bmcclell/nrao/documentation/SEDS_e1e2/')
     print('   nus', nus)
     print('fluxes', fluxes)
     print('errors', errs)

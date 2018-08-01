@@ -522,7 +522,7 @@ class MasterCatalog:
                      ha='left', va='bottom', transform=ax.transAxes)
             plt.text(0, 1, name, fontsize=7, color='w', ha='left', va='top', 
                      transform=ax.transAxes)
-            ax.set_title('Freq: {}'.format(freq_ids[i]))
+            ax.set_title('Freq: {}'.format(freq_ids[len(freq_ids)-len(rsobjs)+i]))
             ax.set_xticks([])
             ax.set_yticks([])
             

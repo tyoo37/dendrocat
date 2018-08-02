@@ -18,10 +18,14 @@
  - [X] Support for adding custom sources to any source catalog, by vstacking a source table
     - [X] `add_sources` method for RadioSource and MasterCatalog
  - [X] Combined aperture grid and SED plots
+ - [ ] Add two new apertures using the radio beam
+    - [ ] Beam centered on peak flux (point-source aperture)
+    - [ ] Ellipse with dimensions 2 x beam centered on peak flux (point-source background)
  - [ ] Add function for custom source names
  - [ ] `match_external` takes an argument for source names -- if a match is made, the source name is replaced
  - [ ] Utils functions to grab a specific source by name, idx, etc (indexing astropy tables is clumsy)
- - [ ] Utils function to get a catalog's non-rejected sources (i.e., `utils.nonrejected(catalog)`)
+ - [ ] Utils function to get a catalog's non-rejected sources (i.e., `dendrocat.utils.nonrejected(catalog)`)
+    - Alternate idea: nonrejected catalog is an attribute of the RadioSource or MasterCatalog object (i.e., `rs1.nonrejected`)
  - [ ] Save and load object information with pickle
  - [ ] Implement circular apertures of different radii
     - [ ] Function name changes with radius
@@ -46,3 +50,4 @@
     - [SOLVED] Matching algorithm was matching accepted sources with rejected sources, overwriting the accepted sources so they don't appear in the master catalog. Fixed by only matching accepted sources to each other.
  - Bright sources with contaminated annululi are mistaken for upper limit detections due to their low SN
  - `MasterCatalog.match_external` only adds one frequency's worth of photometry data
+    - [SOLVED] I don't remember exactly how I fixed it, but I found the bug and fixed it. I promise.

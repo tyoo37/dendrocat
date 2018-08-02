@@ -1,14 +1,53 @@
 import regions
 import astropy.units as u
 import numpy as np
+import warnings
 
+from .utils import ucheck
 
 def mask(reg, cutout):
     n = cutout.shape[0]
     mask = reg.to_mask(mode='center')
     return np.array(mask.to_image((n, n)), dtype='int')
     
+class Aperture():
     
+    def __init__(self, center, major, minor, pa, unit=None):
+        '''
+        Create an elliptical aperture, defined in either pixel or sky 
+        coordinates.
+        
+        Parameters
+        ----------
+        center : list or tuple
+            x and y (ra and dec) coordinates for the center of the ellipse.
+        major : scalar or astropy.units.quantity.Quantity
+            Major axis of the ellipse (i.e., longest diameter)
+        minor : scalar or astropy.units.quantity.Quantity
+            Minor axis of the ellipse (i.e., shortest diameter)
+        pa : scalar or astropy.units.quantity.Quantity
+            If scalar, assumed to be given in degrees. The position angle of 
+            the major axis of the ellipse, measured from the positive x-axis
+            toward the positive y-axis. Defined in the range 0 < pa <= 180.
+        '''
+        
+        if unit is None:
+            try:
+                unit = center[0].unit
+                self.unit = unit
+            except AttributeError:
+                warnings.warn('Unit not specified. Please specify a unit.')
+                return
+        else:
+            self.unit = unit
+        
+        self.center = ucheck(center, unit)
+        self.x_cen = center[0]
+        self.y_cen = center[1]
+        self.major = major
+        self.minor = minor
+        self.pa = pa
+        
 def ellipse(source, cutout, obj):
 
     center = regions.PixCoord(cutout.center_cutout[0], cutout.center_cutout[1])

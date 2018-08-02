@@ -7,9 +7,10 @@ import matplotlib.pyplot as plt
 from collections import OrderedDict
 from copy import deepcopy
 import warnings
-
-
-from .aperture import ellipse, annulus
+    
+    
+class NonEquivalentError(Exception):
+    pass
     
 def specindex(nu1, nu2, f1, alpha):
     return f1*(nu2/nu1)**(alpha) 
@@ -21,7 +22,8 @@ def findrow(idx, catalog):
 def rms(x):
     return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
 
-def check_units(quantity, unit=u.deg):
+def ucheck(quantity, unit=u.deg):
+
     if isinstance(quantity, Column):
         name = quantity.name
         if quantity.unit is None:
@@ -31,8 +33,8 @@ def check_units(quantity, unit=u.deg):
         elif unit.is_equivalent(quantity.unit):
             return Column(quantity.to(unit), name=name)
         else:
-            warnings.warn('Non-equivalent unit already exists.')
-            return Column(quantity, name=name)
+            raise NonEquivalentError("Non-equivalent unit already exists")
+            
     elif isinstance(quantity, MaskedColumn):
         name = quantity.name
         if quantity.unit is None:
@@ -42,14 +44,37 @@ def check_units(quantity, unit=u.deg):
         elif unit.is_equivalent(quantity.unit):
             return MaskedColumn(quantity.to(unit), name=name)
         else:
-            warnings.warn('Non-equivalent unit already exists.')
-            return MaskedColumn(quantity, name=name)
-    else:
+            raise NonEquivalentError("Non-equivalent unit already exists")
+            
+    elif type(quantity) == list or type(quantity) == tuple:
+        existing_units = []
+        for item in quantity:
+            try:
+                existing_units.append(item.unit)
+            except AttributeError:
+                existing_units.append(None)
+        
+        if all(u is None for u in existing_units):
+            warnings.warn("Assuming quantity is in {}".format(unit))
+            return quantity*unit
+        else:
+            for u in existing_units:
+                all_except_u = [x for x in existing_units if x != u]
+                for u2 in all_except_u:
+                    try:
+                        if u.is_equivalent(u2):
+                            pass
+                        else:
+                            raise NonEquivalentError("Non-equivalent unit already exists")
+                    except AttributeError:
+                        raise NonEquivalentError("Cannot reconcile mixed units and scalars")
+        return [u.to(unit).value for u in existing_units]*unit
+            
+    else: # Unit is a single scalar or unit
         if unit.is_equivalent(quantity):
             return quantity.to(unit)
         elif hasattr(quantity, 'unit'):
-            warnings.warn('Non-equivalent unit already exists.')
-            return quantity
+            raise NonEquivalentError("Non-equivalent unit already exists")
         else:
             return quantity * u.Unit(unit)
             warnings.warn("Assuming quantity is in {}".format(unit))
@@ -77,7 +102,7 @@ def commonbeam(major1, minor1, pa1, major2, minor2, pa2):
     
     return new_major.to(u.deg), new_minor.to(u.deg), new_pa
 
-def save_regions(catalog, outfile, skip_rejects=True):
+def saveregions(catalog, outfile, skip_rejects=True):
     """
     Save a catalog as a a DS9 region file.
     
@@ -107,10 +132,9 @@ def save_regions(catalog, outfile, skip_rejects=True):
                      .format(**dict(zip(row.colnames, row))))
 
 
-
-def _matcher(obj1, obj2, verbose=True):
+def match(*args, verbose=True):
     """
-    Find sources that match up between two radio objects. 
+    Find sources that match up between any number of dendrocat objects. 
     
     Parameters
     ----------
@@ -123,280 +147,100 @@ def _matcher(obj1, obj2, verbose=True):
     ----------
     astropy.table.Table object
     """
-    
-    for obj in [obj1, obj2]:
-        if not hasattr(obj, 'catalog'):
-            obj.to_catalog()
-    
-    all_colnames = set(obj1.catalog.colnames + obj2.catalog.colnames)        
-    stack = vstack([obj1.catalog, obj2.catalog])
-    
-    all_colnames.add('_index')
-    try:
-        stack.add_column(Column(range(len(stack)), name='_index'))
-    except ValueError:
-        stack['_index'] = range(len(stack))
-    stack = stack[sorted(list(all_colnames))]
-    
-    rejected = np.where(stack['rejected'] == 1)[0]
-    
-    if verbose:
-        print('Combining matches')
-        pb = ProgressBar(len(stack) - len(rejected))
-    
-    i = 0
-    while True:
+    current_arg = args[0]
+    for k in range(len(args)-1):
+        obj1 = current_arg
+        obj2 = args[k+1]
         
-        if i == len(stack) - 1:
-            break
+        all_colnames = set(obj1.catalog.colnames + obj2.catalog.colnames)        
+        stack = vstack([obj1.catalog, obj2.catalog])
         
-        if i in rejected:
-            i += 1
-            continue
+        all_colnames.add('_index')
+        try:
+            stack.add_column(Column(range(len(stack)), name='_index'))
+        except ValueError:
+            stack['_index'] = range(len(stack))
+        stack = stack[sorted(list(all_colnames))]
         
-        teststar = stack[i]
-        delta_p = deepcopy(stack[stack['rejected']==0]['_idx', '_index', 'x_cen', 'y_cen'])
-        delta_p.remove_rows(np.where(delta_p['_index']==teststar['_index'])[0])
-        delta_p['x_cen'] = np.abs(delta_p['x_cen'] - teststar['x_cen'])                
-        delta_p['y_cen'] = np.abs(delta_p['y_cen'] - teststar['y_cen'])
-        delta_p.sort('x_cen')
+        rejected = np.where(stack['rejected'] == 1)[0]
         
-        threshold = 1e-5
-        found_match = False
-        
-        dist_col = MaskedColumn(length=len(delta_p), name='dist', 
-                                mask=True)
-        
-        for j in range(10):
-            dist_col[j] = np.sqrt(delta_p[j]['x_cen']**2. 
-                                  + delta_p[j]['y_cen']**2)            
-            if dist_col[j] <= threshold:
-                found_match = True
-                
-        delta_p.add_column(dist_col)
-        delta_p.sort('dist')
-        
-        if found_match:
-            match_index = np.where(stack['_index'] == delta_p[0]['_index'])
-            match = deepcopy(stack[match_index])
-            stack.remove_row(match_index[0][0])
-            
-            # Find the common bounding ellipse
-            new_x_cen = np.average([match['x_cen'], teststar['x_cen']])
-            new_y_cen = np.average([match['y_cen'], teststar['y_cen']])
-            
-            # Find new ellipse properties
-            new_maj, new_min, new_pa = commonbeam(
-                                         float(match['major_fwhm']), 
-                                         float(match['minor_fwhm']), 
-                                         float(match['position_angle']),
-                                         float(teststar['major_fwhm']),
-                                         float(teststar['minor_fwhm']),
-                                         float(teststar['position_angle'])
-                                         )
-            
-            # Replace properties of test star
-            stack[i]['x_cen'] = new_x_cen       
-            stack[i]['y_cen'] = new_y_cen
-            stack[i]['major_fwhm'] = new_maj.value
-            stack[i]['minor_fwhm'] = new_min.value
-            stack[i]['position_angle'] = new_pa.value
-    
-            # Replace masked data with available values from the match
-            for k, masked in enumerate(stack.mask[i]):
-                colname = stack.colnames[k]
-                if masked:
-                    stack[i][colname] = match[colname]
-        i += 1
         if verbose:
-            pb.update()
-    
-    # Fill masked detection column fields with 'False'
-    for colname in stack.colnames:
-        if 'detected' in colname:
-            stack[colname].fill_value = 0
+            print('Combining matches')
+            pb = ProgressBar(len(stack) - len(rejected))
+        
+        i = 0
+        while True:
+            
+            if i == len(stack) - 1:
+                break
+            
+            if i in rejected:
+                i += 1
+                continue
+            
+            teststar = stack[i]
+            delta_p = deepcopy(stack[stack['rejected']==0]['_idx', '_index', 'x_cen', 'y_cen'])
+            delta_p.remove_rows(np.where(delta_p['_index']==teststar['_index'])[0])
+            delta_p['x_cen'] = np.abs(delta_p['x_cen'] - teststar['x_cen'])                
+            delta_p['y_cen'] = np.abs(delta_p['y_cen'] - teststar['y_cen'])
+            delta_p.sort('x_cen')
+            
+            threshold = 1e-5
+            found_match = False
+            
+            dist_col = MaskedColumn(length=len(delta_p), name='dist', 
+                                    mask=True)
+            
+            for j in range(10):
+                dist_col[j] = np.sqrt(delta_p[j]['x_cen']**2. 
+                                      + delta_p[j]['y_cen']**2)            
+                if dist_col[j] <= threshold:
+                    found_match = True
+                    
+            delta_p.add_column(dist_col)
+            delta_p.sort('dist')
+            
+            if found_match:
+                match_index = np.where(stack['_index'] == delta_p[0]['_index'])
+                match = deepcopy(stack[match_index])
+                stack.remove_row(match_index[0][0])
+                
+                # Find the common bounding ellipse
+                new_x_cen = np.average([match['x_cen'], teststar['x_cen']])
+                new_y_cen = np.average([match['y_cen'], teststar['y_cen']])
+                
+                # Find new ellipse properties
+                new_maj, new_min, new_pa = commonbeam(
+                                             float(match['major_fwhm']), 
+                                             float(match['minor_fwhm']), 
+                                             float(match['position_angle']),
+                                             float(teststar['major_fwhm']),
+                                             float(teststar['minor_fwhm']),
+                                             float(teststar['position_angle'])
+                                             )
+                
+                # Replace properties of test star
+                stack[i]['x_cen'] = new_x_cen       
+                stack[i]['y_cen'] = new_y_cen
+                stack[i]['major_fwhm'] = new_maj.value
+                stack[i]['minor_fwhm'] = new_min.value
+                stack[i]['position_angle'] = new_pa.value
+        
+                # Replace masked data with available values from the match
+                for k, masked in enumerate(stack.mask[i]):
+                    colname = stack.colnames[k]
+                    if masked:
+                        stack[i][colname] = match[colname]
+            i += 1
+            if verbose:
+                pb.update()
+        
+        # Fill masked detection column fields with 'False'
+        for colname in stack.colnames:
+            if 'detected' in colname:
+                stack[colname].fill_value = 0
 
-    stack['_index'] = range(len(stack))
-    
-    return stack
-    
-
-def match_external_cat(cat, shape=None, freq=None, flux_sum=None, flux_peak=None, 
-                         err=None, ra=None, dec=None, ):
-    '''
-    Split a catalog by frequency, to enable better source matching.
-    
-    Parameters 
-    ----------
-    cat : astropy.table.Table object
-        The catalog to split.
-    freq : string or float
-        Either the column name of the frequencies in the catalog by which the 
-        catalog will be split up, or a float specifying the frequency of every
-        entry in the catalog in GHz.
-    '''
-    
-    catalogs = []
-    
-    if type(freq) is float or type(freq) is int:
-        f_GHz = check_units(freq, u.GHz)
-        freq_id = '{:.0f}'.format(np.round(f_GHz)).replace(' ', '')
-        new_cat = Table(masked=True)
-        for col in cat.colnames:
-            if flux_sum is not None:
-                if flux_sum in col:
-                    newsum = MaskedColumn(data=cat[col],
-                                              name=freq_id+'_'+shape+'_sum')
-                    new_cat.add_column(newsum)
-            if flux_peak is not None:
-                if flux_peak in col:
-                    newpeak = MaskedColumn(data=cat[col],
-                                           name=freq_id+'_'+shape+'_peak')
-                    new_cat.add_column(newpeak)
-            if err is not None:
-                if err in col:
-                    newerr = MaskedColumn(data=cat[col],
-                                          name=freq_id+'_annulus_rms')
-                    new_cat.add_column(newerr)
-    
-        catalogs.append(cat)
-        
-    elif type(freq) is str:
-        for f in set(list(cat[freq_colname])):
-            catalog = cat[cat[freq_colname]==f]
-            new_cat = Table(masked=True)
-            
-            f_GHz = check_units(f, u.GHz)
-            freq_id = '{:.0f}'.format(np.round(f_GHz)).replace(' ', '')
-            
-            for col in catalog.colnames:
-                if flux_sum is not None:
-                    if flux_sum in col:
-                        newsum = MaskedColumn(data=catalog[col],
-                                              name=freq_id+'_'+shape+'_sum')
-                        new_cat.add_column(newsum)
-                if flux_peak is not None:
-                    if flux_peak in col:
-                        newpeak = MaskedColumn(data=catalog[col],
-                                               name=freq_id+'_'+shape+'_peak')
-                        new_cat.add_column(newpeak)
-                if err is not None:
-                    if err in col:
-                        newerr = MaskedColumn(data=catalog[col],
-                                              name=freq_id+'_annulus_rms')
-                        new_cat.add_column(newerr)
-            catalogs.append(catalog)
-    
-    else:
-        warnings.warn('Frequency not specified. Returning original catalog.')
-        catalogs.append(cat)
-        
-    return catalogs
- 
- 
-def plot_sed(row, catalog, aperture=None, alphas=None, peak=False, log=True, 
-             outfile=None):
-    '''
-    Plot a spectral energy distribution for a specific source in the 
-    catalog.
-    
-    Parameters
-    ----------
-    idx : str
-        The identifier used to specify a row in the MasterCatalog.
-    alphas : list of float, optional
-        Spectral indices to plot under flux data.
-    log : bool, optional
-        If enabled, spectral energy distribution will be plotted on a log 
-        scale.
-    tag_ : string
-        tag to search for external photometry data.
-    
-    
-    Examples
-    ----------
-    '''  
-    row = Table(row, masked=True)
-    
-    if aperture is None:
-        aperture = ellipse
-    method = ['peak' if peak else 'sum'][0]
-    apname = aperture.__name__
-    
-    # Temporary fix -- only works if all freq_ids are in GHz
-    freq_ids = []
-    fluxcols = []
-    errcols = []
-    for i, col in enumerate(catalog.colnames):
-        if 'GHz' in col:
-            freq_id = col.split('_')[0]
-            if row.mask[col][0] == False:
-                freq_ids.append(freq_id)
-                if apname in col and method in col:
-                    fluxcols.append(col)
-                if 'annulus' in col and 'rms' in col:
-                    errcols.append(col)
-                if 'ellipse' in col and 'err' in col:
-                    errcols.append(col)
-    
-    freq_ids = list(OrderedDict.fromkeys(freq_ids))
-    fluxcols = list(OrderedDict.fromkeys(fluxcols))
-    errcols = list(OrderedDict.fromkeys(errcols))
-    
-    nus = [float(s.split('GHz')[0]) for s in freq_ids]
-    fluxes = [row[col][0] for col in fluxcols]
-    errs = [row[errcol][0] for errcol in errcols]
-    
-    x = np.linspace(0.8*np.min(nus), 1.1*np.max(nus), 100)
-    ys = []
-    
-    if alphas:
-        k = int(np.floor(len(fluxes)/2))
-        for a in alphas:
-            constant = fluxes[k]/(nus[k]**a)
-            ys.append(constant*(x**a))
-    
-    fig, ax = plt.subplots()
-    
-    for i in range(len(fluxes)):
-        if fluxes[i] < 3.*errs[i]:
-            ax.scatter(nus[i], errs[i], marker='v', color='k', zorder=3, label=r'1 $\sigma$')
-            ax.scatter(nus[i], 2.*errs[i], marker='v', color='darkred', zorder=3, label=r'2 $\sigma$')
-            ax.scatter(nus[i], 3.*errs[i], marker='v', color='red', zorder=3, label=r'3 $\sigma$')
-        else:
-            ax.errorbar(nus[i], fluxes[i], yerr=errs[i], fmt='o', ms=2, 
-                        elinewidth=0.75, color='k', zorder=3,
-                        label='Aperture {}'.format(method))
-        
-    if ys:
-        for i, y in enumerate(ys):                     
-            ax.plot(x, y, '--',
-                    label=r'$\alpha$ = {}'.format(alphas[i], zorder=2))
-            
-    if log is True:
-        ax.set_xscale('log')
-        ax.set_yscale('log')
-        ax.set_xlabel('Log Frequency (GHz)')
-        if peak is True:
-            ax.set_ylabel('Log Peak Flux (Jy)')
-        else:
-            ax.set_ylabel('Log Flux (Jy)')
-    else:
-        ax.set_xlabel('Frequency (GHz)')
-        if peak is True:
-            ax.set_ylabel('Peak Flux (Jy)')
-        else:
-            ax.set_ylabel('Flux (Jy)')
-    
-    ax.set_title('Spectral Energy Distribution for Source {}'
-                 .format(row['_name'][0]))
-                 
-    handles, labels = plt.gca().get_legend_handles_labels()
-    label = OrderedDict(zip(labels, handles))
-    ax.legend(label.values(), label.keys())
-    
-    if outfile is not None:
-        ax.savefig(outfile, dpi=300, bbox_inches='tight')
-    
-    return nus, fluxes, errs
+        stack['_index'] = range(len(stack))
+        current_arg = MasterCatalog(obj1, obj2, catalog=stack)
+    return current_arg
 

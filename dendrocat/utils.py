@@ -22,7 +22,7 @@ def findrow(idx, catalog):
 def rms(x):
     return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
 
-def ucheck(quantity, unit=u.deg):
+def ucheck(quantity, unit):
 
     if isinstance(quantity, Column):
         name = quantity.name
@@ -33,7 +33,7 @@ def ucheck(quantity, unit=u.deg):
         elif unit.is_equivalent(quantity.unit):
             return Column(quantity.to(unit), name=name)
         else:
-            raise NonEquivalentError("Non-equivalent unit already exists")
+            raise NonEquivalentError("Non-equivalent units")
             
     elif isinstance(quantity, MaskedColumn):
         name = quantity.name
@@ -44,7 +44,7 @@ def ucheck(quantity, unit=u.deg):
         elif unit.is_equivalent(quantity.unit):
             return MaskedColumn(quantity.to(unit), name=name)
         else:
-            raise NonEquivalentError("Non-equivalent unit already exists")
+            raise NonEquivalentError("Non-equivalent units")
             
     elif type(quantity) == list or type(quantity) == tuple:
         existing_units = []
@@ -54,29 +54,31 @@ def ucheck(quantity, unit=u.deg):
             except AttributeError:
                 existing_units.append(None)
         
-        if all(u is None for u in existing_units):
+        if all(u1 is None for u1 in existing_units):
             warnings.warn("Assuming quantity is in {}".format(unit))
             return quantity*unit
         else:
-            for u in existing_units:
-                all_except_u = [x for x in existing_units if x != u]
-                for u2 in all_except_u:
-                    try:
-                        if u.is_equivalent(u2):
+            for u1 in existing_units:
+                all_except_u1 = [x for x in existing_units if x != u1]
+                for u2 in all_except_u1:
+                    if u1 is not None and u2 is not None:
+                        if u1.is_equivalent(u2):
                             pass
                         else:
-                            raise NonEquivalentError("Non-equivalent unit already exists")
-                    except AttributeError:
-                        raise NonEquivalentError("Cannot reconcile mixed units and scalars")
-        return [u.to(unit).value for u in existing_units]*unit
+                            raise NonEquivalentError("Non-equivalent units")
+                    elif u1 is not None and u2 is None:
+                        raise NonEquivalentError("Cannot mix units and scalars")
+                    elif u1 is None and u2 is not None:
+                         raise NonEquivalentError("Cannot mix units and scalars")
+        return [item.to(unit) for item in quantity]*unit
             
     else: # Unit is a single scalar or unit
         if unit.is_equivalent(quantity):
             return quantity.to(unit)
         elif hasattr(quantity, 'unit'):
-            raise NonEquivalentError("Non-equivalent unit already exists")
+            raise NonEquivalentError("Non-equivalent units")
         else:
-            return quantity * u.Unit(unit)
+            return quantity * unit
             warnings.warn("Assuming quantity is in {}".format(unit))
 
 def commonbeam(major1, minor1, pa1, major2, minor2, pa2):

@@ -11,6 +11,13 @@ def mask(reg, cutout):
     return np.array(mask.to_image((n, n)), dtype='int')
     
 class Aperture():
+
+    # This class will replace the previous mechanic for grabbing pixels in
+    # certain regions. Now, the user will be able to define custom apertures
+    # in addition to the presets. Support for using astropy regions as 
+    # apertures will also be added. Thus, it is important that this class 
+    # remains similar in function to astropy regions, and that any further
+    # development take place in other classes' methods.
     
     def __init__(self, center, major, minor, pa, unit=None):
         '''
@@ -41,12 +48,47 @@ class Aperture():
         else:
             self.unit = unit
         
-        self.center = ucheck(center, unit)
-        self.x_cen = center[0]
-        self.y_cen = center[1]
-        self.major = major
-        self.minor = minor
-        self.pa = pa
+        self.center = ucheck(center, self.unit)
+        self.x_cen = ucheck(center[0], self.unit)
+        self.y_cen = ucheck(center[1], self.unit)
+        self.major = ucheck(major, self.unit)
+        self.minor = ucheck(minor, self.unit)
+        self.pa = ucheck(pa, u.deg)
+        
+    
+    def place(self, image, wcs=None):
+        """
+        Place the aperture on an image, either using pixel coordinates or the
+        image's WCS.
+        
+        Parameters
+        ----------
+        image : array
+            The image upon which to place the aperture.
+        wcs : astropy.wcs.wcs.WCS object
+            The world coordinate system for the image, used to match up 
+            apertures given in degrees (presumably RA and DEC).
+            
+        Returns
+        ----------
+        numpy.ndarray
+            A boolean mask for the aperture with the same dimensions as `image`
+        """
+        
+        
+        
+        
+    def from_region(region):
+        """
+        Make a dendrocat.aperture.Aperture object from an existing regions
+        object.
+        
+        Parameters
+        ----------
+        region : astropy regions region
+            
+        """
+
         
 def ellipse(source, cutout, obj):
 
@@ -56,7 +98,6 @@ def ellipse(source, cutout, obj):
     pix_minor = (2.*source['minor_fwhm']*u.deg / obj.pixel_scale).value
     pa = source['position_angle']*u.deg
     
-    radius = source['major_fwhm'] * u.deg
     reg = regions.EllipsePixelRegion(center, pix_major, pix_minor, angle=pa)
                      
     ellipse_mask = mask(reg, cutout)

@@ -12,8 +12,7 @@ if __package__ == '':
     __package__ = 'dendrocat'
 from .utils import rms, specindex, ucheck
 from .radiosource import RadioSource
-from .aperture import ellipse, annulus
-
+from .aperture import Aperture
 
 class MasterCatalog:
     """

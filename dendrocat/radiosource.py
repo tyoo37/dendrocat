@@ -15,7 +15,7 @@ warnings.filterwarnings('ignore')
 
 if __package__ == '':
     __package__ = 'dendrocat'
-from .aperture import ellipse, annulus
+from .aperture import Aperture
 from .utils import rms
 
 class RadioSource:
@@ -292,20 +292,6 @@ class RadioSource:
     def get_pixels(self, aperture, catalog=None, data=None, cutouts=None, 
                    save=True, **kwargs):
         """
-        Return a list of pixel arrays, each of which contains the pixels in
-        an annulus of constant width and variable radius depending on the 
-        major fwhm of the source.
-        
-        Parameters
-        ----------
-        Documentation needed!
-        save : bool, optional
-            If enabled, the pixel arrays and masks will both be saved as 
-            instance attributes. Default is True.
-            
-        Returns
-        ----------
-        List of pixel arrays, list of masks
         """
         if catalog is None:
             try:
@@ -335,12 +321,16 @@ class RadioSource:
                 masks.append(float('nan'))
                 continue
             
-            this_mask = aperture(catalog[i], 
-                                 cutouts[i], 
-                                 self,
-                                 **kwargs)
-                                    
-            pix_arrays.append(cutouts[i].data[this_mask.astype('bool')])
+            # Figure out how to make apertures for every new cutout here, right now it doesn't quite work
+            x_cen = catalog['x_cen'][i]
+            y_cen = catalog['y_cen'][i]
+            major = catalog['major_fwhm'][i]
+            minor = catalog['minor_fwhm'][i]
+            pa = catalog['position_angle'][i]
+           ### PICK UP HERE
+            aperture = aperture(
+            this_mask = aperture.place(cutouts[i].data, wcs=self.wcs)
+            pix_arrays.append(cutouts[i].data[this_mask])
             masks.append(this_mask)
         
         if save:

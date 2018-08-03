@@ -2,11 +2,13 @@ import numpy as np
 from radio_beam import Beams
 import astropy.units as u
 from astropy.table import MaskedColumn, Column, vstack, Table
+from astropy.coordinates import SkyCoord
 from astropy.utils.console import ProgressBar
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from copy import deepcopy
 import warnings
+import regions
     
     
 class NonEquivalentError(Exception):
@@ -43,6 +45,18 @@ def ucheck(quantity, unit):
             return MaskedColumn(quantity, name=name)
         elif unit.is_equivalent(quantity.unit):
             return MaskedColumn(quantity.to(unit), name=name)
+        else:
+            raise NonEquivalentError("Non-equivalent units")
+            
+    elif isinstance(quantity, regions.PixCoord):
+        if unit.is_equivalent(u.pix):
+            return quantity
+        else:
+            raise NonEquivalentError("Non-equivalent units")
+    
+    elif isinstance(quantity, SkyCoord):
+        if unit.is_equivalent(u.deg):
+            return quantity
         else:
             raise NonEquivalentError("Non-equivalent units")
             

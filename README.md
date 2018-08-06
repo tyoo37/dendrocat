@@ -19,13 +19,15 @@
  - [X] Add ability to use external catalog fluxes to extend SED plots
  - [X] Support for adding custom sources to any source catalog, by vstacking a source table
     - [X] `add_sources` method for RadioSource and MasterCatalog
+ - [X] MasterCatalog and RadioSource methods to grab a specific source by name, idx, etc (i.e., `MasterCatalog.grab('w51e2')`)
+ - [X] Non-rejected catalog is an attribute of the RadioSource or MasterCatalog object (`RadioSource.nonrejected`)
+ - [ ] Enable peak flux centering as a part of `Aperture.place`
  - [ ] Add two new apertures using the radio beam
     - [ ] Beam centered on peak flux (point-source aperture)
     - [ ] Ellipse with dimensions 2 x beam centered on peak flux (point-source background)
  - [ ] Combined aperture grid and SED plots
  - [ ] `match_external` takes an argument for source names -- if a match is made, the source name is replaced
- - [ ] MasterCatalog and RadioSource methods to grab a specific source by name, idx, etc (i.e., `mc.grab('w51e2')`)
- - [ ] Non-rejected catalog is an attribute of the RadioSource or MasterCatalog object (i.e., `rs1.nonrejected`)
+
  - [ ] Improve rejection algorithm
     - [ ] Reject high eccentricity source ellipses with off-center peak fluxes
     - [ ] Reject large areas where the peak flux isn't much different than the median (indicator of a large noise pocket)

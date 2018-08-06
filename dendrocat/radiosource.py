@@ -10,13 +10,18 @@ from astrodendro import Dendrogram, pp_catalog
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
 import regions
+import pickle
+from copy import deepcopy
 import warnings
 warnings.filterwarnings('ignore')
 
 if __package__ == '':
     __package__ = 'dendrocat'
-from .aperture import Aperture
-from .utils import rms
+from .aperture import Aperture, Ellipse, Circle, Annulus
+from .utils import rms, ucheck
+
+class UnknownApertureError(Exception):
+    pass
 
 class RadioSource:
     """
@@ -245,9 +250,9 @@ class RadioSource:
         if data is None:
             data = self.data
 
-        size = 2.2*(np.max(catalog['major_fwhm'])*u.deg 
-            + self.annulus_padding 
-            + self.annulus_width)
+        size = 0.7*(np.max(catalog['major_fwhm'])*u.deg 
+                + self.annulus_padding 
+                + self.annulus_width)
 
         cutouts = []
         cutout_data = []
@@ -290,7 +295,7 @@ class RadioSource:
     
     
     def get_pixels(self, aperture, catalog=None, data=None, cutouts=None, 
-                   save=True, **kwargs):
+                   save=True):
         """
         """
         if catalog is None:
@@ -303,12 +308,9 @@ class RadioSource:
             data = self.data
         
         if cutouts is None:
-            size = 2.2*(np.max(catalog['major_fwhm'])*u.deg 
-                        + self.annulus_padding 
-                        + self.annulus_width)
             cutouts, cutout_data = self._make_cutouts(catalog=catalog,
                                                       data=data)
-        
+        aperture_original = deepcopy(aperture)
         pix_arrays = []
         masks = []
         
@@ -321,24 +323,58 @@ class RadioSource:
                 masks.append(float('nan'))
                 continue
             
-            # Figure out how to make apertures for every new cutout here, right now it doesn't quite work
             x_cen = catalog['x_cen'][i]
             y_cen = catalog['y_cen'][i]
             major = catalog['major_fwhm'][i]
             minor = catalog['minor_fwhm'][i]
             pa = catalog['position_angle'][i]
-           ### PICK UP HERE
-            aperture = aperture(
-            this_mask = aperture.place(cutouts[i].data, wcs=self.wcs)
+
+            if isinstance(aperture, Aperture):
+                # If this is the case, then aperture has already been given
+                # parameters. It should be 'fixed' dimensions. We just need to
+                # replace the center value with the centers from the sources.
+                
+                if aperture.unit.is_equivalent(u.deg):
+                    aperture.center = coordinates.SkyCoord(x_cen*u.deg, y_cen*u.deg)
+                elif aperture.unit.is_equivalent(u.pix):
+                    sky = coordinates.SkyCoord(x_cen*u.deg, y_cen*u.deg)
+                    pixel = ucheck(sky.to_pixel(cutouts[i].wcs), u.pix)
+                    aperture.center = pixel
+                    aperture.x_cen, aperture.y_cen = pixel[0], pixel[1]
+                    
+            elif issubclass(aperture, Aperture):
+                # If this is the case, then the aperture type has been
+                # specified and doesn't have any parameters associated to it.
+                
+                # DEFAULTS FOR VARIABLE APERTURES STORED HERE
+                cen = [x_cen, y_cen]
+                if aperture == Ellipse:
+                    aperture = Ellipse(cen, major, minor, pa, unit=u.deg)
+                
+                elif aperture == Annulus:
+                    inner_r = major*u.deg+self.annulus_padding
+                    outer_r = major*u.deg+self.annulus_padding+self.annulus_width
+                    aperture = Annulus(cen, inner_r, outer_r, unit=u.deg)
+                
+                elif aperture == Circle:
+                    radius = major
+                    aperture = Circle(cen, radius, unit=u.deg)
+                
+                else:
+                    raise UnknownApertureError('Aperture not recognized. Pass'
+                                               ' an instance of a custom aper'
+                                               'ture instead.')
+            
+            this_mask = aperture.place(cutouts[i].data, wcs=cutouts[i].wcs)
             pix_arrays.append(cutouts[i].data[this_mask])
             masks.append(this_mask)
+            aperture = aperture_original # reset the aperture for the next source
         
         if save:
             self.__dict__['pixels_{}'
                           .format(aperture.__name__)] = np.array(pix_arrays)
             self.__dict__['mask_{}'
                           .format(aperture.__name__)] = np.array(masks)
-        
         return np.array(pix_arrays), np.array(masks)
         
     
@@ -375,12 +411,12 @@ class RadioSource:
                 cutouts, cutout_data = self._make_cutouts(catalog=catalog, 
                                                           data=data)
         
-            background = self.get_pixels(annulus, 
+            background = self.get_pixels(Annulus, 
                                          catalog=catalog,
                                          data=data,
                                          cutouts=cutouts)[0]
                                           
-            source = self.get_pixels(ellipse, 
+            source = self.get_pixels(Ellipse, 
                                      catalog=catalog,
                                      data=data,
                                      cutouts=cutouts)[0]
@@ -405,7 +441,7 @@ class RadioSource:
     
     
     def plot_grid(self, catalog=None, data=None, cutouts=None, cutout_data=None,
-                  apertures=None, skip_rejects=True, outfile=None):
+                  source_aperture=None, bkg_aperture=None, skip_rejects=True, outfile=None):
         """
         Plot sources in a grid.
         
@@ -436,12 +472,11 @@ class RadioSource:
         if data is None:
             data = self.data
         
-        # Make sure ellipse and annulus apertures are used
-        if apertures is None:
-            apertures = [ellipse, annulus]
-        else:
-            apertures = list(set(apertures+[ellipse, 
-                                            annulus]))
+        if source_aperture is None:
+            source_aperture = Ellipse
+            
+        if bkg_aperture is None:
+            bkg_aperture = Annulus
         
         # Get cutouts
         if cutouts is None or cutout_data is None:
@@ -453,7 +488,7 @@ class RadioSource:
         pixels = []
         masks = []
         
-        for aperture in apertures:
+        for aperture in [source_aperture, bkg_aperture]:
             some_pixels, a_mask = self.get_pixels(aperture,
                                                   catalog=catalog,
                                                   data=data,
@@ -463,8 +498,8 @@ class RadioSource:
             masks.append(a_mask)
         
         # Find SNR
-        ellipse_pix = pixels[ap_names.index('ellipse')]
-        annulus_pix = pixels[ap_names.index('annulus')]
+        ellipse_pix = pixels[0]
+        annulus_pix = pixels[1]
         
         snr_vals = self.get_snr(source=ellipse_pix, background=annulus_pix,
                                 catalog=catalog)
@@ -556,19 +591,34 @@ class RadioSource:
         for i in range(len(self.catalog)):
             if snrs[i] <= threshold or np.isnan(snrs[i]):
                 self.catalog['rejected'][i] = 1
+        
+        self.nonrejected = self.catalog[self.catalog['rejected']==0]
                     
 
     def reject(self, rejected_list):
         rejected_list = np.array(rejected_list, dtype=str)
         for nm in rejected_list:
             self.catalog['rejected'][np.where(self.catalog['_name'] == nm)] = 1
+        self.nonrejected = self.catalog[self.catalog['rejected']==0]
             
             
     def accept(self, accepted_list):
         accepted_list = np.array(accepted_list, dtype=str)
         for nm in accepted_list:
             self.catalog['rejected'][np.where(self.catalog['_name'] == nm)] = 0
-
+        self.nonrejected = self.catalog[self.catalog['rejected']==0]
+        
+        
     def reset(self):
         self.catalog['rejected'] = 0
+        self.nonrejected = self.catalog[self.catalog['rejected']==0]
         
+        
+    def grab(self, name):
+        return self.catalog[self.catalog['_name']==name]
+
+
+    def dump(self, outfile):
+        outfile = outfile.split('.')[0]+'.pickle'
+        with open(outfile, 'wb') as output:
+            pickle.dump(obj, output, protocol=pickle.HIGHEST_PROTOCOL)

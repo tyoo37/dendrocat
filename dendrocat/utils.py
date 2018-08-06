@@ -23,6 +23,11 @@ def findrow(idx, catalog):
 
 def rms(x):
     return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
+    
+def load(infile):
+    filename = infile.split('.')[0]+'.pickle'
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
 
 def ucheck(quantity, unit):
 
@@ -143,9 +148,10 @@ def saveregions(catalog, outfile, skip_rejects=True):
     with open(outfile, 'w') as fh:
         fh.write("icrs\n")
         for row in catalog:
-            fh.write("ellipse({x_cen}, {y_cen}, {major_fwhm}, " \
-                     "{minor_fwhm}, {position_angle}) # text={{{_name}}}\n"
-                     .format(**dict(zip(row.colnames, row))))
+            fh.write("ellipse({}, {}, {}, {}, {}) # text={{}}\n"
+                     .format(row['x_cen'], row['y_cen'], row['major_fwhm']/2.,
+                             row['minor_fwhm']/2., row['position_angle'], 
+                             row['_name']))
 
 
 def match(*args, verbose=True):

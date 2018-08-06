@@ -35,9 +35,14 @@ class MasterCatalog:
         """
         if catalog is not None:
             self.catalog = catalog
+            self.nonrejected = catalog[catalog['rejected']==0]
         self.add_objects(*args)
-        self.catalog
-
+       
+       
+    def grab(self, name):
+        return self.catalog[self.catalog['_name']==name]
+        
+        
     def add_objects(self, *args):
         obj_prefix = 'radiosource_'
         for obj in args:

@@ -91,8 +91,8 @@ class RadioSource:
                 
                 # Create a frequency identifier from nu
                 if not self.freq_id:
-                    self.freq_id = ('{:.1f}'.format(np.round(self.nu
-                                            .to(u.GHz))).replace(' ', ''))
+                    self.freq_id = ('{:.1f}'.format(self.nu
+                                            .to(u.GHz)).replace(' ', ''))
                 self.set_metadata()
                 
             else:
@@ -267,7 +267,7 @@ class RadioSource:
                 cutout = Cutout2D(data, 
                                   position, 
                                   size, 
-                                  self.wcs, 
+                                  wcs=self.wcs, 
                                   mode='partial')
                 cutouts.append(cutout)
                 cutout_data.append(cutout.data)

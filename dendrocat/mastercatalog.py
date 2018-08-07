@@ -68,7 +68,6 @@ class MasterCatalog:
             self.catalog['_index'] = range(len(self.catalog))
     
     
-    ########## UNDER CONSTRUCTION ###################
     def photometer(self, *args, catalog=None):
         """
         Add photometry data columns to the master catalog.
@@ -82,93 +81,93 @@ class MasterCatalog:
             parameters.
         """
         
-        if catalog is None:
-            catalog = self.catalog
-        
-        rs_objects = []
-        for i, obj in enumerate(self.__dict__.values()):
-            if isinstance(obj, RadioSource):
-                rs_objects.append(obj)
-        
-        for i, rs_obj in enumerate(rs_objects):
+        for aperture in args:
+            if catalog is None:
+                catalog = self.catalog
             
-            data = rs_obj.data
-            cutouts, cutout_data = rs_obj._make_cutouts(catalog=catalog, 
-                                                        save=False)
-                                                                                    
-            pix_in_aperture = rs_obj.get_pixels(
-                                                aperture,
-                                                catalog=catalog,
-                                                data=data,
-                                                cutouts=cutouts,
-                                                **kwargs
-                                                )[0]
+            rs_objects = []
+            for i, obj in enumerate(self.__dict__.values()):
+                if isinstance(obj, RadioSource):
+                    rs_objects.append(obj)
             
-            names = [
-                rs_obj.freq_id+'_'+aperture.__name__+'_peak',
-                rs_obj.freq_id+'_'+aperture.__name__+'_sum',
-                rs_obj.freq_id+'_'+aperture.__name__+'_rms',
-                rs_obj.freq_id+'_'+aperture.__name__+'_median',
-                rs_obj.freq_id+'_'+aperture.__name__+'_npix'
-            ]
-            
-            peak_data = np.zeros(len(pix_in_aperture))
-            for j in range(len(pix_in_aperture)):
-                peak_data[j] = np.max(pix_in_aperture[j])
-            aperture_peak_col = MaskedColumn(data=peak_data,
-                                             name=names[0])
-            
-            sum_data = np.zeros(len(pix_in_aperture))
-            for j in range(len(pix_in_aperture)):
-                ind = [pix_in_aperture[j] > 0.]
-                try:
-                    sum_data[j] = np.sum(pix_in_aperture[j][ind])/rs_obj.ppbeam
-                except TypeError: # Catches single pixel apertures
-                    sum_data[j] = float('nan') 
-            aperture_sum_col = MaskedColumn(data=sum_data,
-                                            name=names[1])                  
-                                            
-            rms_data = np.zeros(len(pix_in_aperture))
-            for j in range(len(pix_in_aperture)):
-                rms_data[j] = rms(pix_in_aperture[j])                           
-            aperture_rms_col = MaskedColumn(data=rms_data,
-                                            name=names[2])
-            
-            median_data = np.zeros(len(pix_in_aperture))
-            for j in range(len(pix_in_aperture)):
-                median_data[j] = np.median(pix_in_aperture[j])                   
-            aperture_median_col = MaskedColumn(data=median_data,
-                                               name=names[3])
-            
-            npix_data = np.zeros(len(pix_in_aperture))
-            for j in range(len(pix_in_aperture)):
-                if np.isnan(pix_in_aperture[j]).any():
-                    npix_data[j] = float('nan')
-                else:
-                    npix_data[j] = len(pix_in_aperture[j])
-                aperture_npix_col = MaskedColumn(data=npix_data,
-                                                 name=names[4])
-            
-            try:
-                self.catalog.remove_columns(names)
-            except KeyError:
-                pass
+            for i, rs_obj in enumerate(rs_objects):
                 
-            self.catalog.add_columns([
-                aperture_peak_col,
-                aperture_sum_col,
-                aperture_rms_col,
-                aperture_median_col,
-                aperture_npix_col
-            ])  
-            
-            # Mask NaN values        
-            for col in self.catalog.colnames:
+                data = rs_obj.data
+                cutouts, cutout_data = rs_obj._make_cutouts(catalog=catalog, 
+                                                            save=False)
+                                                                                        
+                pix_in_aperture = rs_obj.get_pixels(
+                                                    aperture,
+                                                    catalog=catalog,
+                                                    data=data,
+                                                    cutouts=cutouts,
+                                                    )[0]
+                
+                names = [
+                    rs_obj.freq_id+'_'+aperture.__name__+'_peak',
+                    rs_obj.freq_id+'_'+aperture.__name__+'_sum',
+                    rs_obj.freq_id+'_'+aperture.__name__+'_rms',
+                    rs_obj.freq_id+'_'+aperture.__name__+'_median',
+                    rs_obj.freq_id+'_'+aperture.__name__+'_npix'
+                ]
+                
+                peak_data = np.zeros(len(pix_in_aperture))
+                for j in range(len(pix_in_aperture)):
+                    peak_data[j] = np.max(pix_in_aperture[j])
+                aperture_peak_col = MaskedColumn(data=peak_data,
+                                                 name=names[0])
+                
+                sum_data = np.zeros(len(pix_in_aperture))
+                for j in range(len(pix_in_aperture)):
+                    ind = [pix_in_aperture[j] > 0.]
+                    try:
+                        sum_data[j] = np.sum(pix_in_aperture[j][ind])/rs_obj.ppbeam
+                    except TypeError: # Catches single pixel apertures
+                        sum_data[j] = float('nan') 
+                aperture_sum_col = MaskedColumn(data=sum_data,
+                                                name=names[1])                  
+                                                
+                rms_data = np.zeros(len(pix_in_aperture))
+                for j in range(len(pix_in_aperture)):
+                    rms_data[j] = rms(pix_in_aperture[j])                           
+                aperture_rms_col = MaskedColumn(data=rms_data,
+                                                name=names[2])
+                
+                median_data = np.zeros(len(pix_in_aperture))
+                for j in range(len(pix_in_aperture)):
+                    median_data[j] = np.median(pix_in_aperture[j])                   
+                aperture_median_col = MaskedColumn(data=median_data,
+                                                   name=names[3])
+                
+                npix_data = np.zeros(len(pix_in_aperture))
+                for j in range(len(pix_in_aperture)):
+                    if np.isnan(pix_in_aperture[j]).any():
+                        npix_data[j] = float('nan')
+                    else:
+                        npix_data[j] = len(pix_in_aperture[j])
+                    aperture_npix_col = MaskedColumn(data=npix_data,
+                                                     name=names[4])
+                
                 try:
-                    isnan = np.argwhere(np.isnan(list(self.catalog[col])))
-                    self.catalog.mask[col][isnan] = True
-                except TypeError:
+                    self.catalog.remove_columns(names)
+                except KeyError:
                     pass
+                    
+                self.catalog.add_columns([
+                    aperture_peak_col,
+                    aperture_sum_col,
+                    aperture_rms_col,
+                    aperture_median_col,
+                    aperture_npix_col
+                ])  
+                
+                # Mask NaN values        
+                for col in self.catalog.colnames:
+                    try:
+                        isnan = np.argwhere(np.isnan(list(self.catalog[col])))
+                        self.catalog.mask[col][isnan] = True
+                    except TypeError:
+                        pass
             
             
     def ffplot(self, rsobj1, rsobj2, apertures=[], alphas=None, peak=False,

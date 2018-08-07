@@ -105,12 +105,12 @@ def commonbeam(major1, minor1, pa1, major2, minor2, pa2):
     Create a smallest bounding ellipse around two other ellipses. 
     Give ellipse dimensions as astropy units quantities.
     """
-    major1 = check_units(major1, unit=u.deg)
-    minor1 = check_units(minor1, unit=u.deg)
-    pa1 = check_units(pa1, unit=u.deg)
-    major2 = check_units(major2, unit=u.deg)
-    minor2 = check_units(minor2, unit=u.deg)
-    pa2 = check_units(pa2, unit=u.deg)
+    major1 = ucheck(major1, unit=u.deg)
+    minor1 = ucheck(minor1, unit=u.deg)
+    pa1 = ucheck(pa1, unit=u.deg)
+    major2 = ucheck(major2, unit=u.deg)
+    minor2 = ucheck(minor2, unit=u.deg)
+    pa2 = ucheck(pa2, unit=u.deg)
     
     somebeams = Beams([major1.to(u.arcsec), major2.to(u.arcsec)]*u.arcsec, 
                       [minor1.to(u.arcsec), minor2.to(u.arcsec)]*u.arcsec, 
@@ -155,6 +155,7 @@ def saveregions(catalog, outfile, skip_rejects=True):
 
 
 def match(*args, verbose=True):
+    
     """
     Find sources that match up between any number of dendrocat objects. 
     
@@ -169,6 +170,9 @@ def match(*args, verbose=True):
     ----------
     astropy.table.Table object
     """
+    
+    from .mastercatalog import MasterCatalog
+    
     current_arg = args[0]
     for k in range(len(args)-1):
         obj1 = current_arg

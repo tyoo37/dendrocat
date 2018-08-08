@@ -5,7 +5,7 @@ dendrocat
     :target: http://www.astropy.org
     :alt: Powered by Astropy Badge
 
-A package for detecting and processing sources in radio images. The core of dendrocat contains infrastructure for source detection using `astrodendro <https://github.com/dendrograms/astrodendro>`__, noisy source rejection, cataloging, and photometry. Auxiliary classes and methods provide more specialized analysis on already-photometered data.
+A package for detecting and processing sources in radio images. The core of ``dendrocat`` contains infrastructure for source detection using `astrodendro <https://github.com/dendrograms/astrodendro>`__, noisy source rejection, cataloging, and photometry. Auxiliary classes and methods provide more specialized analysis on already-photometered data.
 
 Links
 --------------
@@ -34,17 +34,18 @@ Upcoming Features
 
 Installation
 ------------
-dendrocat requires the following packages to install:
+``dendrocat`` requires the following packages to install:
 
 - `numpy <http://www.numpy.org>`__ 1.14.3 or later
 - `Astropy <http://www.astropy.org>`__ 1.2 or later
 
-dendrocat requires the following packages to function:
+``dendrocat`` requires the following packages to function:
 
 - `regions <https://github.com/astropy/regions>`__ 0.3.dev662 or later
 - `astrodendro <https://github.com/dendrograms/astrodendro>`__ 0.2.0 or later
+- `radio-beam <https://github.com/radio-astro-tools/radio-beam>`__ 0.3.1.dev335 or later
 
-dendrocat can be cloned from its `repository <http://github.com/cmcclellan1010/dendrocat/>`__ on GitHub.
+``dendrocat`` can be cloned from its `repository <http://github.com/cmcclellan1010/dendrocat/>`__ on GitHub.
 
 .. code-block:: bash
     

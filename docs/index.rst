@@ -1,15 +1,17 @@
 Documentation
 =============
 
-This is the documentation for dendrocat.
-Package for detecting and processing sources in radio images.
+This is the documentation for dendrocat, a package for detecting and processing sources in radio images.
+
+- Code: `Github repository`_
+- Docs: `dendrocat documentation`_
+- Contributors: https://github.com/cmcclellan1010/dendrocat/graphs/contributors
 
 .. toctree::
   :maxdepth: 2
 
-  dendrocat/index.rst
+Table of Contents
+=================
 
-.. note:: The layout of this directory is simply a suggestion.  To follow
-          traditional practice, do *not* edit this page, but instead place
-          all documentation for the package inside ``dendrocat/``.
-          You can follow this practice or choose your own layout.
+  installation
+  getting_started

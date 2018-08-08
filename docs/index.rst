@@ -1,15 +1,15 @@
 Documentation
 =============
 
-This is the documentation for RSProcess.
+This is the documentation for dendrocat.
 Package for detecting and processing sources in radio images.
 
 .. toctree::
   :maxdepth: 2
 
-  rsprocess/index.rst
+  dendrocat/index.rst
 
 .. note:: The layout of this directory is simply a suggestion.  To follow
           traditional practice, do *not* edit this page, but instead place
-          all documentation for the package inside ``rsprocess/``.
+          all documentation for the package inside ``dendrocat/``.
           You can follow this practice or choose your own layout.

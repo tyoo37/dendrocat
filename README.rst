@@ -5,12 +5,12 @@ dendrocat
     :target: http://www.astropy.org
     :alt: Powered by Astropy Badge
 
-A package for detecting and processing sources in radio images. The core of$dendrocat contains infrastructure for source detection using $astrodendro, noisy source rejection, cataloging, and photometry. Auxiliary classes and methods provide more specialized analysis on already-photometered data.
+A package for detecting and processing sources in radio images. The core of dendrocat contains infrastructure for source detection using `astrodendro <https://github.com/dendrograms/astrodendro>`__, noisy source rejection, cataloging, and photometry. Auxiliary classes and methods provide more specialized analysis on already-photometered data.
 
 Features
 --------
 
-- Source detection using $astrodendro
+- Source detection using `astrodendro <https://github.com/dendrograms/astrodendro>`__
 - A suite of customizable apertures, each with masking functionality
 - Signal-to-noise calculation
 - SNR-based source rejection
@@ -29,12 +29,14 @@ Upcoming Features
 Installation
 ------------
 dendrocat requires the following packages to install:
-* `numpy <http://www.numpy.org>`__ 1.14.3 or later
-* `Astropy <http://www.astropy.org>`__ 1.2 or later
+
+- `numpy <http://www.numpy.org>`__ 1.14.3 or later
+- `Astropy <http://www.astropy.org>`__ 1.2 or later
 
 dendrocat requires the following packages to function:
-* `regions <https://github.com/astropy/regions>`__ 0.3.dev662 or later
-* `astrodendro <https://github.com/dendrograms/astrodendro>`__
+
+- `regions <https://github.com/astropy/regions>`__ 0.3.dev662 or later
+- `astrodendro <https://github.com/dendrograms/astrodendro>`__ 0.2.0 or later
 
 $dendrocat can be cloned from its `repository <http://github.com/cmcclellan1010/dendrocat/>`__ on GitHub.
 
@@ -47,8 +49,8 @@ $dendrocat can be cloned from its `repository <http://github.com/cmcclellan1010/
 Contribute
 ----------
 
-- Issue Tracker: github.com/cmcclellan1010/dendrocat/issues
-- Source Code: github.com/cmcclellan1010/dendrocat
+- Issue Tracker: `github.com/cmcclellan1010/dendrocat/issues <https://github.com/cmcclellan1010/dendrocat/issues>`__
+- Source Code: `github.com/cmcclellan1010/dendrocat <https://github.com/cmcclellan1010/dendrocat>`__
 
 License
 -------

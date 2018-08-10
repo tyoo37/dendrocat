@@ -39,8 +39,22 @@ class MasterCatalog:
         self.add_objects(*args)
        
        
-    def grab(self, name):
-        return self.catalog[self.catalog['_name']==name]
+    def grab(self, name, skip_rejects=False):
+        if skip_rejects:
+            catalog = self.accepted
+        else: 
+            catalog = self.catalog
+            
+        if type(name) == tuple or type(name) == list:
+            name = np.array(name).astype(str)
+            indices = []
+            for i in range(len(catalog)):
+                if catalog['_name'][i] in names:
+                    indices.append(i)
+            indices = np.array(indices)
+            return catalog[indices]
+        else:
+            return self.catalog[self.catalog['_name']==str(name)]
         
         
     def add_objects(self, *args):

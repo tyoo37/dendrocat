@@ -31,6 +31,18 @@ import sys
 from recommonmark.parser import CommonMarkParser
 
 try:
+    import astropy_helpers
+except ImportError:
+    # Building from inside the docs/ directory?
+    if os.path.basename(os.getcwd()) == 'docs':
+        a_h_path = os.path.abspath(os.path.join('..', 'astropy_helpers'))
+        if os.path.isdir(a_h_path):
+            sys.path.insert(1, a_h_path)
+
+# Load all of the global Astropy configuration
+from astropy_helpers.sphinx.conf import *
+
+try:
     from sphinx_astropy.conf.v1 import *  # noqa
 except ImportError:
     print('ERROR: the documentation requires the sphinx-astropy package to be installed')
@@ -63,6 +75,26 @@ highlight_language = 'python3'
 # To perform a Sphinx version check that needs to be more specific than
 # major.minor, call `check_sphinx_version("x.y.z")` here.
 # check_sphinx_version("1.2.1")
+
+# add any intersphinx for dendrocat
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3/',
+               (None, 'http://data.astropy.org/intersphinx/python3.inv')),
+    'pythonloc': ('http://docs.python.org/',
+                  path.abspath(path.join(path.dirname(__file__),
+                                         'local/python3_local_links.inv'))),
+    'numpy': ('https://docs.scipy.org/doc/numpy/',
+              (None, 'http://data.astropy.org/intersphinx/numpy.inv')),
+    'scipy': ('https://docs.scipy.org/doc/scipy/reference/',
+              (None, 'http://data.astropy.org/intersphinx/scipy.inv')),
+    'matplotlib': ('http://matplotlib.org/',
+                   (None, 'http://data.astropy.org/intersphinx/matplotlib.inv')),
+    'astropy': ('http://docs.astropy.org/en/stable/', None),
+    'h5py': ('http://docs.h5py.org/en/stable/', None),
+    'astrodendro': ('https://dendrograms.readthedocs.io/en/stable/', None),
+    'regions': ('https://astropy-regions.readthedocs.io/en/latest/', None),
+    }
+
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -166,6 +198,7 @@ man_pages = [('index', project.lower(), project + u' Documentation',
 
 if eval(setup_cfg.get('edit_on_github')):
     extensions += ['sphinx_astropy.ext.edit_on_github']
+    extensions += ['sphinx.ext.intersphinx']
 
     versionmod = __import__(setup_cfg['package_name'] + '.version')
     edit_on_github_project = setup_cfg['github_project']

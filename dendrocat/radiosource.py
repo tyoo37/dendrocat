@@ -593,30 +593,45 @@ class RadioSource:
             if snrs[i] <= threshold or np.isnan(snrs[i]):
                 self.catalog['rejected'][i] = 1
         
-        self.nonrejected = self.catalog[self.catalog['rejected']==0]
+        self.accepted = self.catalog[self.catalog['rejected']==0]
+        self.rejected = self.catalog[self.catalog['rejected']==1]
                     
 
     def reject(self, rejected_list):
         rejected_list = np.array(rejected_list, dtype=str)
         for nm in rejected_list:
             self.catalog['rejected'][np.where(self.catalog['_name'] == nm)] = 1
-        self.nonrejected = self.catalog[self.catalog['rejected']==0]
-            
+        self.accepted = self.catalog[self.catalog['rejected']==0]
+        self.rejected = self.catalog[self.catalog['rejected']==1]
             
     def accept(self, accepted_list):
         accepted_list = np.array(accepted_list, dtype=str)
         for nm in accepted_list:
             self.catalog['rejected'][np.where(self.catalog['_name'] == nm)] = 0
-        self.nonrejected = self.catalog[self.catalog['rejected']==0]
-        
+        self.accepted = self.catalog[self.catalog['rejected']==0]
+        self.rejected = self.catalog[self.catalog['rejected']==1]
         
     def reset(self):
         self.catalog['rejected'] = 0
-        self.nonrejected = self.catalog[self.catalog['rejected']==0]
+        self.accepted = self.catalog[self.catalog['rejected']==0]
+        self.rejected = self.catalog[self.catalog['rejected']==1]
         
-        
-    def grab(self, name):
-        return self.catalog[self.catalog['_name']==name]
+    def grab(self, name, skip_rejects=False):
+        if skip_rejects:
+            catalog = self.accepted
+        else: 
+            catalog = self.catalog
+            
+        if type(name) == tuple or type(name) == list:
+            name = np.array(name).astype(str)
+            indices = []
+            for i in range(len(catalog)):
+                if catalog['_name'][i] in names:
+                    indices.append(i)
+            indices = np.array(indices)
+            return catalog[indices]
+        else:
+            return self.catalog[self.catalog['_name']==str(name)]
 
 
     def dump(self, outfile):

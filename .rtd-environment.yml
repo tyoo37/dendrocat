@@ -14,3 +14,4 @@ dependencies:
     - sphinx-astropy
     - radio-beam
     - regions
+    - astrodendro

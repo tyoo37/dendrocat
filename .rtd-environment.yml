@@ -2,6 +2,8 @@ name: rsprocess
 
 channels:
     - astropy
+    - defaults
+    - conda-forge
 
 dependencies:
     - python=3
@@ -10,5 +12,3 @@ dependencies:
     - matplotlib
     - numpy
     - sphinx-astropy
-#   - pip:
-#       - dependency_from_pip

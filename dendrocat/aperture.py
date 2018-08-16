@@ -14,7 +14,8 @@ class NoWCSError(Exception):
 
 class Aperture():
     
-    def __init__(self, center, major, minor, pa, unit=None, frame='icrs'):
+    def __init__(self, center, major, minor, pa, unit=None, frame='icrs', 
+                 name=None):
         '''
         Create an elliptical aperture, defined in either pixel (x, y) or sky 
         (ra, dec) coordinates.
@@ -37,6 +38,9 @@ class Aperture():
         frame : str, optional
             The coordinate frame in which (ra, dec) coordinates are specified.
             Default is 'icrs'.
+        name : str, optional
+            The name used in the catalog column names when photometry is 
+            performed with this aperture.
         '''
         
         if unit is None:
@@ -51,6 +55,9 @@ class Aperture():
             if type(unit) is str:
                 unit = u.Unit(unit)
             self.unit = unit
+
+        if name is not None:
+            self.__name__ = name
         
         self.center = ucheck(center, self.unit)
         
@@ -129,16 +136,15 @@ class Aperture():
  
 class Ellipse(Aperture):
      
-    def __init__(self, center, major, minor, pa, unit=None, frame='icrs'):
-       Aperture.__init__(self, center, major, minor, pa, unit=unit)
-       self.__name__ = 'ellipse'
+    def __init__(self, center, major, minor, pa, unit=None, frame='icrs', name=None):
+       Aperture.__init__(self, center, major, minor, pa, unit=unit, name=name)
     def place(self, image, wcs=None):
        return Aperture.place(self, image, wcs=wcs)
 
 
 class Annulus(Aperture):
 
-    def __init__(self, center, inner, outer, unit=None, frame='icrs'):
+    def __init__(self, center, inner, outer, unit=None, frame='icrs', name=None):
         if unit is None:
             try:
                 unit = inner.unit
@@ -149,6 +155,10 @@ class Annulus(Aperture):
                                   'units object.')
         else:
             self.unit = unit
+
+        if name is not None:
+            self.__name__ = name
+
         self.aperture_inner = Aperture(center, inner, inner, 0, unit=unit)
         self.aperture_outer = Aperture(center, outer, outer, 0, unit=unit)
         self.center = ucheck(center, self.unit)
@@ -156,7 +166,6 @@ class Annulus(Aperture):
         self.y_cen = ucheck(center[1], self.unit)
         self.inner = ucheck(inner, self.unit)
         self.outer = ucheck(outer, self.unit)
-        self.__name__ = 'annulus'
         
     def place(self, image, wcs=None):
         return (self.aperture_outer.place(image, wcs=wcs)
@@ -165,10 +174,9 @@ class Annulus(Aperture):
 
 class Circle(Aperture):
     
-    def __init__(self, center, radius, unit=None, frame='icrs'):
-        Aperture.__init__(self, center, radius, radius, 0, unit=unit)
+    def __init__(self, center, radius, unit=None, frame='icrs', name=None):
+        Aperture.__init__(self, center, radius, radius, 0, unit=unit, name=name)
         self.radius = ucheck(radius, self.unit)
-        self.__name__ = 'circle'
         
     def place(self, image, wcs=None):
         return Aperture.place(self, image, wcs=wcs)

@@ -28,25 +28,25 @@ class RadioSource:
     An object to store radio image data.
     """
 
-    def __init__(self, hdu, region_id=None, freq_id=None):
+    def __init__(self, hdu,  name=None, freq_id=None):
         """
         Parameters
         ----------
         hdu : `~astropy.io.fits.hdu.image.PrimaryHDU`
             An astropy FITS HDU object containing the radio image data and 
             header.
-        region_id : str
+        region_id : str, optional
             An identifier specifying what sky object the radio image contains.
         freq_id : str, optional
             An identifier specifying the observation frequency (Ex: 226.0GHz). 
             If not specified, it will be generated from the FITS image header.
         """
-
         self.hdu = hdu
         self.header = hdu[0].header
         self.data = hdu[0].data.squeeze()
-        self.region_id = region_id
         self.freq_id = freq_id
+
+        self.__name__ = name
         
         self.wcs = wcs.WCS(self.header).celestial
         self.beam = radio_beam.Beam.from_fits_header(self.header)
@@ -54,7 +54,7 @@ class RadioSource:
                             .prod())**0.5 * u.deg)
         self.ppbeam = (self.beam.sr/(self.pixel_scale**2)).decompose().value
         self._get_fits_info()
-    
+
         # Set default dendrogram values
         self.min_value = 1.7*np.nanstd(self.data)
         self.min_delta = 1.4*self.min_value
@@ -72,7 +72,8 @@ class RadioSource:
             'annulus_width':self.annulus_width,
             'annulus_padding':self.annulus_padding
                             }
-    
+
+
     def _get_fits_info(self):
         """
         Get information from FITS header.
@@ -98,6 +99,8 @@ class RadioSource:
                 if not self.freq_id:
                     self.freq_id = ('{:.1f}'.format(self.nu
                                             .to(u.GHz)).replace(' ', ''))
+                    if self.name is None:
+                        self.name = 'Unknown_{}'.format(self.freq_id)
                 self.set_metadata()
                 
             else:

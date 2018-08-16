@@ -14,6 +14,10 @@ from .utils import rms, specindex, ucheck
 from .radiosource import RadioSource
 from .aperture import Aperture
 
+class ApertureError(Exception):
+    pass
+
+
 class MasterCatalog:
     """
     An object to store combined data from two or more RadioSource objects.
@@ -35,7 +39,7 @@ class MasterCatalog:
         """
         if catalog is not None:
             self.catalog = catalog
-            self.nonrejected = catalog[catalog['rejected']==0]
+            self.accepted = catalog[catalog['rejected']==0]
         self.add_objects(*args)
        
        
@@ -58,14 +62,14 @@ class MasterCatalog:
         
         
     def add_objects(self, *args):
-        obj_prefix = 'radiosource_'
         for obj in args:
             if isinstance(obj, MasterCatalog):
-                for key in obj.__dict__.keys():
-                    if key.split('_')[0]+'_' == obj_prefix:
-                        self.__dict__[key] = obj[key]
-            else:        
-                self.__dict__[obj_prefix+obj.freq_id] = obj
+                for key, value in obj.__dict__.items():
+                    if isinstance(value, RadioSource):
+                        self.__dict__[key] = value
+            else:
+                objname = [k for k, v in locals().items() if v is obj][0]
+                self.__dict__[obj.__name__] = obj
     
     
     def add_sources(self, *args):
@@ -184,24 +188,30 @@ class MasterCatalog:
                         pass
             
             
-    def ffplot(self, rsobj1, rsobj2, apertures=[], alphas=None, peak=False,
-               label=False, log=True, outfile=None):
-           
+    def ffplot(self, rsobj1, rsobj2, apertures=[], bkg_apertures=[], 
+               alphas=None, peak=False, label=False, log=True, outfile=None):
+        
+        if type(apertures) != list:
+            apertures = list([apertures])
+
+        if type(bkg_apertures) != list:
+            bkg_apertures = list([bkg_apertures])
+
+        if len(bkg_apertures) != len(apertures):
+            raise ApertureError('Must give equal number of apertures and '
+                                'background apertures')
+        
         if rsobj1.nu > rsobj2.nu:
             rsobj1, rsobj2 = rsobj2, rsobj1
         
         catalog = deepcopy(self.catalog)
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-        
-        apertures = list(set(apertures)|{ellipse, annulus})
+
         if alphas is None:
             alphas = [1, 2, 3]
         
         cols = []
         for aperture in apertures:
-            
-            cols.append(rsobj1.freq_id+'_'+aperture.__name__+'_rms')
-            cols.append(rsobj2.freq_id+'_'+aperture.__name__+'_rms')
             
             if peak:
                 cols.append(rsobj1.freq_id+'_'+aperture.__name__+'_peak')
@@ -210,6 +220,10 @@ class MasterCatalog:
                 cols.append(rsobj1.freq_id+'_'+aperture.__name__+'_sum')
                 cols.append(rsobj2.freq_id+'_'+aperture.__name__+'_sum')
         
+        for bkg_aperture in bkg_apertures:
+            cols.append(rsobj1.freq_id+'_'+bkg_aperture.__name__+'_rms')
+            cols.append(rsobj2.freq_id+'_'+bkg_aperture.__name__+'_rms')
+
         try:
             index = list(set(range(len(catalog)))^
                          set(np.nonzero(catalog.mask[cols])[0])
@@ -229,7 +243,7 @@ class MasterCatalog:
         err1 = []
         err2 = []
         
-        for aperture in list(set(apertures)^set([annulus])):
+        for aperture in apertures:
         
             if peak:
                 flux1.append(catalog['{}_{}_peak'.format(rsobj1.freq_id, 
@@ -241,9 +255,10 @@ class MasterCatalog:
                                                          aperture.__name__)])
                 flux2.append(catalog['{}_{}_sum'.format(rsobj2.freq_id, 
                                                          aperture.__name__)])
-                                     
-        err1.append(catalog[rsobj1.freq_id+'_annulus_rms'])
-        err2.append(catalog[rsobj2.freq_id+'_annulus_rms'])
+
+        for bkg_aperture in bkg_apertures:
+            err1.append(catalog[rsobj1.freq_id+bkg_aperture.__name__+'_rms'])
+            err2.append(catalog[rsobj2.freq_id+bkg_aperture.__name__+'_rms'])
         
         marker_labels = catalog['_name']
         

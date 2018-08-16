@@ -35,6 +35,11 @@ The procedure for creating radio source objects, generating dendrograms, and cre
 
 .. Note:: FITS header extraction is undergoing development. Currently, only specific headers from EVLA and ALMA are supported, but this will change soon. See :ref:`the_radiosource_class` for details.
 
+`~dendrocat.RadioSource` objects should be named to distinguish them from others that may be combined later. This can be done using the keyword argument ``name`` when initializing the `~dendrocat.RadioSource`, or afterwards by setting the instance attribute manually.
+
+.. code-block:: python
+    >>> source_object.__name__ = 'w51_226GHz'
+
 A catalog of sources can then be created using dendrograms.
 
 .. code-block:: python
@@ -73,7 +78,7 @@ Sources can then be manually accepted or rejected using `~dendrocat.RadioSource.
     
 The identifiers used to accept and reject sources are those stored under the ``_name`` column in the `~dendrocat.RadioSource` object's catalog. More information about accessing Astropy tables can be found in the `Accessing a table <http://docs.astropy.org/en/stable/table/access_table.html>`__ section of the Astropy documentation.
 
-`dendrocat.utils.saveregions` can be used to save a DS9 region file of all the apertures in a catalog. With an image open in DS9, the region file can be loaded in to check each aperture and find the proper identifier (saved as ``_name`` in the source catalog) to use for manual acceptance or rejection.
+`dendrocat.utils.saveregions` can be used to save a DS9 region file of all the apertures in a catalog. With an image open in DS9, overlay the region file to check each aperture and find the label (saved as ``_name`` in the source catalog) to use for manual acceptance or rejection.
 
 .. code-block:: python
 
@@ -87,10 +92,9 @@ The `~dendrocat.RadioSource` object is (more or less) complete after source reje
     from dendrocat import RadioSource, MasterCatalog
     from dendrocat.utils import match
     
-    source_object1 = RadioSource(fits.open('/path/to/file1.fits'))
-    source_object2 = RadioSource(fits.open('/path/to/file2.fits'))
+    source_object1 = RadioSource(fits.open('/path/to/file1.fits'), name='so1')
+    source_object2 = RadioSource(fits.open('/path/to/file2.fits'), name='so2')
 
-    
     source_object1.autoreject()
     source_object2.autoreject()
     
@@ -98,7 +102,99 @@ The `~dendrocat.RadioSource` object is (more or less) complete after source reje
 
     mastercat_object = MasterCatalog(source_object1, source_object2, catalog=combined_catalog)
     
+.. Note:: `~dendrocat.utils.match` operates on `~dendrocat.RadioSource` and `~dendrocat.MasterCatalog` objects only. To match catalogs that have been manually edited, filtered, etc., make customizations to the `~dendrocat.RadioSource` and `~MasterCatalog` catalogs before matching.
 
+The `~dendrocat.MasterCatalog` stores each of the `~dendrocat.RadioSource` objects as instance attributes. These can be accessed using the ``__name__`` of each `~dendrocat.RadioSource`. It also has its own catalog, which is usually the matched catalog of its constituent `~dendrocat.RadioSource` objects.
+
+.. code-block:: python
+
+    >>> mastercatalog.__dict__.keys()
+    dict_keys(['catalog', 'accepted', 'so1', 'so2'])
+
+    >>> mastercatalog.so1
+    <dendrocat.radiosource.RadioSource at 0x7f0c25f29fd0>
+
+The main purpose of the `~dendrocat.MasterCatalog` is to be a framework for photometry. Photometry is done using `~dendrocat.aperture.Aperture` objects, which define the shape and behavior of the apertures used to photometer the sources in a catalog.
+
+An `~dendrocat.aperture.Aperture` can be made into an instance if you want to use fixed-dimension apertures---for example, a circular aperture with a constant radius of 15 pixels. 
+
+.. code-block :: python
+
+    import astropy.units as u
+    from dendrocat.aperture import Circle, Annulus
+
+    # Define a fixed-radius circular aperture in pixels
+    fixed_circle = Circle([0, 0], 15*u.pix, name='fixedcirc')
+
+    # Define a fixed-dimension annular aperture in pixels
+    fixed_annulus = Annulus([0, 0], 30, 40, unit=u.pix, name='fixedannulus')
+    
+Now, photometry can be done on the `~dendrocat.MasterCatalog` object.
+
+.. code-block:: python
+
+    mastercatalog.photometer(fixed_circle, fixed_annulus)
+    
+For apertures that change shape according to their dendrogram ellipse parameters (called variable-dimension apertures), simply use the class itself instead of creating an instance.
+
+.. code-block:: python
+
+    mastercatalog.photometer(Circle, Annulus)
+
+The source catalog is updated to include photometry data for all available frequencies, in each of the specified apertures.
+
+.. code-block:: python
+
+    >>> mastercatalog.catalog.colnames
+     [...
+     '226.1GHz_fixedcirc_peak',
+     '226.1GHz_fixedcirc_sum',
+     '226.1GHz_fixedcirc_rms',
+     '226.1GHz_fixedcirc_median',
+     '226.1GHz_fixedcirc_npix',
+     '93.0GHz_fixedcirc_peak',
+     '93.0GHz_fixedcirc_sum',
+     '93.0GHz_fixedcirc_rms',
+     '93.0GHz_fixedcirc_median',
+     '93.0GHz_fixedcirc_npix',
+     '226.1GHz_fixedannulus_peak',
+     '226.1GHz_fixedannulus_sum',
+     '226.1GHz_fixedannulus_rms',
+     '226.1GHz_fixedannulus_median',
+     '226.1GHz_fixedannulus_npix',
+     '93.0GHz_fixedannulus_peak',
+     '93.0GHz_fixedannulus_sum',
+     '93.0GHz_fixedannulus_rms',
+     '93.0GHz_fixedannulus_median',
+     '93.0GHz_fixedannulus_npix',
+     '226.1GHz_Circle_peak',
+     '226.1GHz_Circle_sum',
+     '226.1GHz_Circle_rms',
+     '226.1GHz_Circle_median',
+     '226.1GHz_Circle_npix',
+     '93.0GHz_Circle_peak',
+     '93.0GHz_Circle_sum',
+     '93.0GHz_Circle_rms',
+     '93.0GHz_Circle_median',
+     '93.0GHz_Circle_npix',
+     '226.1GHz_Annulus_peak',
+     '226.1GHz_Annulus_sum',
+     '226.1GHz_Annulus_rms',
+     '226.1GHz_Annulus_median',
+     '226.1GHz_Annulus_npix',
+     '93.0GHz_Annulus_peak',
+     '93.0GHz_Annulus_sum',
+     '93.0GHz_Annulus_rms',
+     '93.0GHz_Annulus_median',
+     '93.0GHz_Annulus_npix']
+
+Photometry data for each of the sources can then be accessed using each of these column names.
+
+To save any catalog for later use, use `~astropy.table.Table.write`.
+
+.. code-block:: python
+
+    >>> mastercatalog.catalog.write('/path/to/outfile.dat', format='ascii', overwrite=True)
 
 
 

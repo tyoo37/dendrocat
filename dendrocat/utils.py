@@ -161,25 +161,25 @@ def match(*args, verbose=True):
     
     Parameters
     ----------
-    obj1 : rsprocess.RadioSource object or rsprocess.MasterCatalog object
+    *args : `~dendrocat.Radiosource`, `~dendrocat.Mastercatalog`, or `~astropy.table.Table` object
         A catalog with which to compare radio sources.
-    obj2 : rsprocess.RadioSource object or rsprocess.MasterCatalog object
-        A catalog with which to compare radio sources.
+    verbose : bool, optional
+        If enabled, output is fed to the console.
         
     Returns
     ----------
-    astropy.table.Table object
+    `~dendrocat.MasterCatalog` object
     """
     
     from .mastercatalog import MasterCatalog
     
     current_arg = args[0]
     for k in range(len(args)-1):
-        obj1 = current_arg
-        obj2 = args[k+1]
-        
-        all_colnames = set(obj1.catalog.colnames + obj2.catalog.colnames)        
-        stack = vstack([obj1.catalog, obj2.catalog])
+        arg1 = current_arg
+        arg2 = args[k+1]
+
+        all_colnames = set(arg1.catalog.colnames + arg2.catalog.colnames)        
+        stack = vstack([arg1.catalog, arg2.catalog])
         
         all_colnames.add('_index')
         try:
@@ -267,6 +267,6 @@ def match(*args, verbose=True):
                 stack[colname].fill_value = 0
 
         stack['_index'] = range(len(stack))
-        current_arg = MasterCatalog(obj1, obj2, catalog=stack)
+        current_arg = MasterCatalog(arg1, arg2, catalog=stack)
     return current_arg
 

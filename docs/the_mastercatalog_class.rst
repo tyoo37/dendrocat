@@ -13,6 +13,7 @@ Adding Objects
 Additional `~dendrocat.RadioSource` or `~dendrocat.MasterCatalog` objects can be added to an existing `~dendrocat.MasterCatalog` using `~dendrocat.MasterCatalog.add_objects`.
 
 .. code-block:: python
+
     from dendrocat import RadioSource, MasterCatalog
     from dendrocat.utils import match
     from astropy.io import fits

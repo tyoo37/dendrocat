@@ -102,7 +102,7 @@ The `~dendrocat.RadioSource` object is (more or less) complete after source reje
 
     mastercat_object = MasterCatalog(source_object1, source_object2, catalog=combined_catalog)
     
-.. Note:: `~dendrocat.utils.match` operates on `~dendrocat.RadioSource` and `~dendrocat.MasterCatalog` objects only. To match catalogs that have been manually edited, filtered, etc., make customizations to the `~dendrocat.RadioSource` and `~MasterCatalog` catalogs before matching.
+.. Note:: `~dendrocat.utils.match` operates on `~dendrocat.RadioSource` and `~dendrocat.MasterCatalog` objects only. To match catalogs that have been manually edited, filtered, etc., make customizations to the `~dendrocat.RadioSource` and `~dendrocat.MasterCatalog` catalogs before matching.
 
 The `~dendrocat.MasterCatalog` stores each of the `~dendrocat.RadioSource` objects as instance attributes. These can be accessed using the ``__name__`` of each `~dendrocat.RadioSource`. It also has its own catalog, which is usually the matched catalog of its constituent `~dendrocat.RadioSource` objects.
 

@@ -28,7 +28,6 @@
 import datetime
 import os
 import sys
-from recommonmark.parser import CommonMarkParser
 
 try:
     import astropy_helpers
@@ -58,12 +57,6 @@ conf = ConfigParser()
 conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
 setup_cfg = dict(conf.items('metadata'))
 
-# Added for using Markdown
-source_parsers = {
-    '.md': CommonMarkParser,
-    }
-    
-source_suffix = ['.rst', '.md']
 # -- General configuration ----------------------------------------------------
 
 # By default, highlight as Python 3.

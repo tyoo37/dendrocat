@@ -22,7 +22,7 @@ Additional `~dendrocat.RadioSource` or `~dendrocat.MasterCatalog` objects can be
     source_object2 = RadioSource(fits.open('file2.fits'), name='so2')
     source_object3 = RadioSource(fits.open('file3.fits'), name='so3')
 
-If ``source_object3`` is a much lower-resolution, noisier image, you may want to forgo generating a dendrogram for it. The source regions from the other two higher-resolution images may be used instead.
+If ``source_object3`` is a much lower-resolution image, you may want to forgo generating a dendrogram for it. The source regions from the other two higher-resolution images may be used instead.
 
 .. code-block:: python
 
@@ -31,17 +31,29 @@ If ``source_object3`` is a much lower-resolution, noisier image, you may want to
 
     mastercatalog = match(source_object1, source_object2)
 
-Now, adding other `~dendrocat.RadioSource` objects or `~dendrocat.MasterCatalog` objects will preserve the existing `~dendrocat.MasterCatalog`'s source catalog, while adding all the associated `~dendrocat.RadioSource` objects to its dictionary of attributes.
+Adding other `~dendrocat.RadioSource` objects or `~dendrocat.MasterCatalog` objects will preserve the existing `~dendrocat.MasterCatalog`'s source catalog.
 
 .. code-block:: python
 
-    >>> mc.add_objects(source_object3)
-    >>> mc.__dict__.keys()
+    >>> mastercatalog.add_objects(source_object3)
+    >>> mastercatalog.__dict__.keys()
     dict_keys(['catalog', 'accepted', 'so1', 'so2', 'so3'])
 
 At this point, performing photometry yields photometry data for all three images, though only two images were used to detect the sources in the first place.
 
-.. Note:: The `~dendrocat.MasterCatalog` that calls `~dendrocat.MasterCatalog.add_objects` will always have its catalog preserved. If `~dendrocat.MasterCatalog.add_objects` adds another `~dendrocat.MasterCatalog`, all of the other `~dendrocat.MasterCatalog`'s associated `~dendrocat.RadioSource` objects will be appropriated by the `~dendrocat.MasterCatalog` calling `~dendrocat.MasterCatalog.add_objects`. The other's source catalog will be abandoned.
+
+Note that the `~dendrocat.MasterCatalog` which calls `~dendrocat.MasterCatalog.add_objects` will always have its catalog preserved, and will take `~dendrocat.RadioSource` objects from whatever is added to it.
+
+.. code-block:: python
+
+    >>> mastercatalog1 = MasterCatalog(so1, so2, catalog=cat_A)
+    >>> mastercatalog2 = MasterCatalog(so3, so4, catalog=cat_B)
+    >>> mastercatalog1.add_objects(mastercatalog2)
+    >>> mastercatalog1.catalog == catA
+    True
+
+    >>> mastercatalog1.__dict__.keys()
+    dict_keys(['catalog', 'accepted', 'so1', 'so2', 'so3', 'so4'])
 
 Renaming Sources
 ----------------

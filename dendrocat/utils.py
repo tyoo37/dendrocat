@@ -14,6 +14,33 @@ import regions
 class NonEquivalentError(Exception):
     pass
     
+def get_index_masked(table):
+    """
+    Returns indices of rows in a table that contain one or more masked entries.
+
+    Parameters
+    ----------
+    table : ~astropy.table.Table
+        The table to check for masked entries.
+
+    Returns
+    -------
+    ~numpy.ndarray
+    """
+
+    ind = []
+    try:
+        for i, row in enumerate(table.mask):
+            if np.array(list(row)).any():
+                ind.append(i)
+    except TypeError: 
+        for i, somebool in enumerate(table.mask):
+            if somebool:
+                ind.append(i)
+    
+    return np.array(ind)
+
+
 def specindex(nu1, nu2, f1, alpha):
     return f1*(nu2/nu1)**(alpha) 
     

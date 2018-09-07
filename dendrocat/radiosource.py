@@ -99,8 +99,8 @@ class RadioSource:
                 if not self.freq_id:
                     self.freq_id = ('{:.1f}'.format(self.nu
                                             .to(u.GHz)).replace(' ', ''))
-                    if self.name is None:
-                        self.name = 'Unknown_{}'.format(self.freq_id)
+                    if self.__name__ is None:
+                        self.__name__ = 'Unknown_{}'.format(self.freq_id)
                 self.set_metadata()
                 
             else:

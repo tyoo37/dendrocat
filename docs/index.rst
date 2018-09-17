@@ -18,6 +18,8 @@ Note that this package relies on other astronomy-related Python packages to func
 - Docs: :ref:`dendrocat_documentation`
 - Contributors: https://github.com/cmcclellan1010/dendrocat/graphs/contributors
 
+.. _getting_started:
+
 Getting Started
 ---------------
 

@@ -117,6 +117,10 @@ class RadioSource:
     
     
     def set_metadata(self):
+    """
+    Sets RadioSource metadata using nu, WCS, and other FITS header data.
+    """
+
         self.metadata = {
             'data_unit': u.Unit(self.header['BUNIT']),
             'spatial_scale': self.pixel_scale,
@@ -131,22 +135,24 @@ class RadioSource:
                       save=True):
         """
         Calculates a dendrogram for the image.
-        Documentation needed
+        
         Parameters
         ----------
         min_value : float, optional
-        
+            Minimum detection level to be considered in the dendrogram.
         min_delta : float, optional
-        
+            How significant a dendrogram structure has to be in order to be 
+            considered a separate entity.
         min_npix : float, optional
-            
+            Minimum number of pixel needed for a dendrogram structure to be
+            considered a separate entity.
         save : bool, optional
             If enabled, the resulting dendrogram will be saved as an instance
             attribute. Default is True.
             
         Returns
         ----------
-        ~astrodendro.dendrogram.Dendrogram object
+        `~astrodendro.dendrogram.Dendrogram` object
             A dendrogram object calculated from the radio image.
         """              
       
@@ -173,13 +179,16 @@ class RadioSource:
     
     def to_catalog(self, dendrogram=None):
         """
-        Returns an astropy.table.Table object containing a position-position 
-        catalog of leaves in a dendrogram.
+        Creates a position-position catalog of leaves in a dendrogram.
         
         Parameters
         ----------
-        dendrogram : ~astrodendro.dendrogram.Dendrogram object, optional
+        dendrogram : `~astrodendro.dendrogram.Dendrogram` object, optional
             The dendrogram object to extract sources from.
+
+        Returns
+        -------
+        `~astropy.table.Table`
         """
         
         if not dendrogram:
@@ -222,6 +231,16 @@ class RadioSource:
 
 
     def add_sources(self, *args):
+        """
+        Adds external source entries to the existing catalog.
+
+        Parameters
+        ----------
+        *args: `~astropy.table.Table`
+            A source catalog containing the sources you wish to add to the 
+            existing catalog.
+        """
+
         for sources in args:
             self.catalog = vstack([self.catalog, sources])
             self.catalog['_index'] = range(len(self.catalog))
@@ -229,7 +248,7 @@ class RadioSource:
 
     def _make_cutouts(self, catalog=None, data=None, save=True):
         """
-        Make a cutout_data of cutout regions around all source centers in the 
+        Make a cutout of cutout regions around all source centers in the 
         catalog.
         
         Parameters
@@ -300,7 +319,25 @@ class RadioSource:
     def get_pixels(self, aperture, catalog=None, data=None, cutouts=None, 
                    save=True):
         """
+        Get pixels within an aperture for each entry in the specified catalog.
+
+        Parameters
+        ----------
+        aperture: `~dendrocat.aperture.Aperture`
+            The aperture determining which pixels to grab.
+        catalog: `~astropy.table.Table`, optional
+            A source catalog containing the center positions of each source.
+        data: array-like
+            Image data for the sources in the catalog.
+        cutouts: 
+            For developer use
+
+        Returns
+        -------
+        pixels, masks
+        `~numpy.ndarray`, `~numpy.ndarray`
         """
+
         if catalog is None:
             try:
                 catalog = self.catalog
@@ -388,11 +425,28 @@ class RadioSource:
         
         Parameters
         ----------
+        source: array-like
+            Array of source fluxes to use in SNR calculation.
+        background: array-like
+            Array of background fluxes to use in SNR calculation.
+        catalog: `~astropy.table.Table`
+            The catalog of sources for which to calculate the SNR.
+        data: array-like
+            Image data for the sources in the catalog.
+        cutouts:
+            For developer use
+        cutout_data:
+            For developer use
         peak : bool, optional
             Use peak flux of source pixels as 'signal'. Default is True.
         save : bool, optional
             If enabled, the snr will be saved as a column in the source catalog
             and as an instance attribute. Default is True.
+
+        Returns
+        -------
+        `~numpy.ndarray`
+
         """
         
         if catalog is None:
@@ -601,6 +655,15 @@ class RadioSource:
                     
 
     def reject(self, rejected_list):
+        """
+        Reject specific sources in the catalog.
+
+        Parameters
+        ----------
+        rejected_list: list
+            A list of ``_name``s, for which each corresponding entry will be 
+            marked rejected.
+        """
         rejected_list = np.array(rejected_list, dtype=str)
         for nm in rejected_list:
             self.catalog['rejected'][np.where(self.catalog['_name'] == nm)] = 1
@@ -608,6 +671,15 @@ class RadioSource:
         self.rejected = self.catalog[self.catalog['rejected']==1]
             
     def accept(self, accepted_list):
+        """        
+        Accept specific sources in the catalog.
+
+        Parameters
+        ----------
+        accpeted_list: list
+            A list of ``_name``s, for which each corresponding entry will be 
+            marked accepted.
+        """
         accepted_list = np.array(accepted_list, dtype=str)
         for nm in accepted_list:
             self.catalog['rejected'][np.where(self.catalog['_name'] == nm)] = 0
@@ -615,11 +687,28 @@ class RadioSource:
         self.rejected = self.catalog[self.catalog['rejected']==1]
         
     def reset(self):
+        """
+        Reset all sources' rejection flags to 0 (all accepted).
+        """
+
         self.catalog['rejected'] = 0
         self.accepted = self.catalog[self.catalog['rejected']==0]
         self.rejected = self.catalog[self.catalog['rejected']==1]
         
     def grab(self, name, skip_rejects=False):
+        """
+        Search the catalog for an entry matching a specific name, and return
+         it.
+
+        Parameters
+        ----------
+        name: tuple, list, or str
+            The name or names of the sources to search for.
+        skip_rejects: bool, optional
+            If enabled, will only search accepted sources.
+        """
+
+
         if skip_rejects:
             catalog = self.accepted
         else: 
@@ -638,6 +727,9 @@ class RadioSource:
 
 
     def dump(self, outfile):
+        """
+        Dump the `~dendrocat.RadioSource` object via pickle.
+        """
         outfile = outfile.split('.')[0]+'.pickle'
         with open(outfile, 'wb') as output:
             pickle.dump(obj, output, protocol=pickle.HIGHEST_PROTOCOL)

@@ -49,7 +49,7 @@ Note that the `~dendrocat.MasterCatalog` which calls `~dendrocat.MasterCatalog.a
     >>> mastercatalog1 = MasterCatalog(so1, so2, catalog=cat_A)
     >>> mastercatalog2 = MasterCatalog(so3, so4, catalog=cat_B)
     >>> mastercatalog1.add_objects(mastercatalog2)
-    >>> mastercatalog1.catalog == catA
+    >>> mastercatalog1.catalog == cat_A
     True
 
     >>> mastercatalog1.__dict__.keys()

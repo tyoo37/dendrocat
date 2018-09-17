@@ -21,7 +21,7 @@ Note that this package relies on other astronomy-related Python packages to func
 Getting Started
 ---------------
 
-The procedure for creating radio source objects, generating dendrograms, and creating source catalogs is demonstrated below. This example uses default settings. In-depth documentation is located in :ref:`the_radiosource_class` and :ref:`the_mastercatalog_class` sections.
+The procedure for creating radio source objects, generating dendrograms, and creating source catalogs is demonstrated below. This example uses default settings. In-depth documentation is located in the :ref:`using_dendrocat` section.
 
 ``RadioSource`` is the starting place for any analysis to be done using dendrocat. It takes a radio image, extracts information from the FITS header, and sets attributes that are necessary for further processing.
 
@@ -100,9 +100,9 @@ The `~dendrocat.RadioSource` object is (more or less) complete after source reje
     
     combined_catalog = match(source_object1.catalog, source_object2.catalog)
 
-    mastercat_object = MasterCatalog(source_object1, source_object2, catalog=combined_catalog)
+    mastercatalog = MasterCatalog(source_object1, source_object2, catalog=combined_catalog)
     
-.. Note:: `~dendrocat.utils.match` operates on `~dendrocat.RadioSource` and `~dendrocat.MasterCatalog` objects only. To match catalogs that have been manually edited, filtered, etc., make customizations to the `~dendrocat.RadioSource` and `~dendrocat.MasterCatalog` catalogs before matching.
+.. Note:: `~dendrocat.utils.match` operates on `~dendrocat.RadioSource` and `~dendrocat.MasterCatalog` objects only, and will not take plain catalogs as arguments. To match catalogs that have been manually edited, filtered, etc., make customizations to the `~dendrocat.RadioSource` and `~dendrocat.MasterCatalog` catalogs before matching.
 
 The `~dendrocat.MasterCatalog` stores each of the `~dendrocat.RadioSource` objects as instance attributes. These can be accessed using the ``__name__`` of each `~dendrocat.RadioSource`. It also has its own catalog, which is usually the matched catalog of its constituent `~dendrocat.RadioSource` objects.
 
@@ -114,9 +114,11 @@ The `~dendrocat.MasterCatalog` stores each of the `~dendrocat.RadioSource` objec
     >>> mastercatalog.so1
     <dendrocat.radiosource.RadioSource at 0x7f0c25f29fd0>
 
-The main purpose of the `~dendrocat.MasterCatalog` is to be a framework for photometry. Photometry is done using `~dendrocat.aperture.Aperture` objects, which define the shape and behavior of the apertures used to photometer the sources in a catalog.
+The main purpose of the `~dendrocat.MasterCatalog` is as a framework for photometry. Photometry is done using `~dendrocat.aperture.Aperture` objects, which define the shape and behavior of the apertures used to photometer the sources in a catalog.
 
-An `~dendrocat.aperture.Aperture` can be made into an instance if you want to use fixed-dimension apertures---for example, a circular aperture with a constant radius of 15 pixels. 
+The `~dendrocat.MasterCatalog` class performs photometry by taking an aperture and placing it over the locations of all the sources in its catalog. The apertures may also be scaled according to the FWHM of the source.
+
+An `~dendrocat.aperture.Aperture` should be made into an instance if you want to use fixed-dimension apertures---for example, a circular aperture with a constant radius of 15 pixels. 
 
 .. code-block :: python
 
@@ -135,7 +137,7 @@ Now, photometry can be done on the `~dendrocat.MasterCatalog` object.
 
     mastercatalog.photometer(fixed_circle, fixed_annulus)
     
-For apertures that change shape according to their dendrogram ellipse parameters (called variable-dimension apertures), simply use the class itself instead of creating an instance.
+For apertures that change shape according to the major and minor FWHM of each source, simply use the class itself instead of creating an instance.
 
 .. code-block:: python
 
@@ -197,6 +199,7 @@ To save any catalog for later use, use `~astropy.table.Table.write`.
     >>> mastercatalog.catalog.write('/path/to/outfile.dat', format='ascii', overwrite=True)
 
 
+.. _using_dendrocat:
 
 Using ``dendrocat``
 -------------------

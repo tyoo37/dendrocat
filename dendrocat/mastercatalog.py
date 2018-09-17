@@ -33,9 +33,6 @@ class MasterCatalog:
             The master table from which to build the catalog object.
         *args : radiosource.RadioSource objects
             RadioSource objects from which the master table was built.
-        
-        NOTE: Currently only supports multiple objects if they're of different
-              frequencies (the freq_id must be unique).
         """
         if catalog is not None:
             self.catalog = catalog

@@ -224,7 +224,7 @@ def match(*args, verbose=True, threshold=0.036*u.arcsec):
             print('Combining matches')
             pb = ProgressBar(len(stack) - len(rejected))
 
-        for ii in range(len(stack)+1):
+        for ii in range(len(stack)):
 
             if ii in rejected:
                 if verbose:

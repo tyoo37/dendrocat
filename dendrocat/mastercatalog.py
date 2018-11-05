@@ -3,9 +3,6 @@ from collections import OrderedDict
 import numpy as np
 import astropy.units as u
 from copy import deepcopy
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gs
-import matplotlib.ticker
 from astropy.coordinates import SkyCoord, Angle
 
 if __package__ == '':
@@ -16,7 +13,6 @@ from .aperture import Aperture
 
 class ApertureError(Exception):
     pass
-
 
 class MasterCatalog:
     """
@@ -41,6 +37,19 @@ class MasterCatalog:
        
        
     def grab(self, name, skip_rejects=False):
+        """
+        Grab a source or sources by name.
+
+        Parameters
+        ----------
+        name : str or list
+            String or list of strings to search the catalog "_name" header for.       
+        skip_rejects : bool, optional
+            If enabled, rejected sources will not be queried. Disabled by 
+            default.
+        """
+
+
         if skip_rejects:
             catalog = self.accepted
         else: 
@@ -59,6 +68,15 @@ class MasterCatalog:
         
         
     def add_objects(self, *args):
+        """
+        Add a new `~dendrocat.RadioSource` object to the existing master
+        catalog.
+        
+        Parameters
+        ----------
+        *args : '~dendrocat.RadioSource` objects
+            RadioSource objects to add to the master catalog.
+        """
         for obj in args:
             if isinstance(obj, MasterCatalog):
                 for key, value in obj.__dict__.items():
@@ -89,7 +107,10 @@ class MasterCatalog:
         
         Parameters
         ----------
-        args : dendrocat.aperture
+        args : `~dendrocat.Aperture` objects
+            The apertures to use for photometry. Can be given as either 
+            instances or objects, to use fixed or variable aperture widths, 
+            respectively.
             
         catalog : astropy.table.Table object
             The catalog from which to extract source coordinates and ellipse
@@ -188,6 +209,40 @@ class MasterCatalog:
     def ffplot(self, rsobj1, rsobj2, apertures=[], bkg_apertures=[], 
                alphas=None, peak=False, label=False, log=True, outfile=None):
         
+        """
+        Produce a flux-flux plot for two `~dendrocat.RadioSource` objects.
+        
+        Parameters
+        ----------
+        rsobj1 : `~dendrocat.RadioSource` object
+            One of two radio source objects from which to make a flux-flux 
+            plot.
+        rsobj2 : `~dendrocat.RadioSource` object
+            The other of two radio source objects from which to make a 
+            flux-flux plot.
+        apertures : list
+            List of `~dendrocat.Aperture` objects to use for source apertures.
+        bkg_apertures : list
+            List of `~dendrocat.Aperture` objects to use for background 
+            apertures.
+        alphas : list, optional
+            Spectral indices to overplot on top of the flux-flux data. 1, 2, 
+            and 3 will be used by default.
+        peak : bool, optional
+            If enabled, peak flux inside the aperture is used instead of 
+            aperture sum. Disabled by default.
+        label : bool, optional
+            If enabled, labels will be printed on the plot to identify sources.
+            Disabled by default.
+        log : bool, optional
+            If enabled, results will be shown on log-log axes. Enabled by 
+            default.
+        outfile : str, optional
+            If provided, output plot will be saved to this file path.
+        """
+
+        import matplotlib.pyplot as plt
+
         if type(apertures) != list:
             apertures = list([apertures])
 

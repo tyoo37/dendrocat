@@ -130,21 +130,86 @@ class Aperture():
         Parameters
         ----------
         region : astropy regions region
-            
+            The region from which to make the new aperture object.
         """
  
  
 class Ellipse(Aperture):
-     
+    
     def __init__(self, center, major, minor, pa, unit=None, frame='icrs', name=None):
        Aperture.__init__(self, center, major, minor, pa, unit=unit, name=name)
+    """    
+        Create an elliptical aperture, defined in either pixel (x, y) or sky 
+        (ra, dec) coordinates.
+        
+        Parameters
+        ----------
+        center : list or tuple, as scalar or astropy.units.quantity.Quantity
+            x and y (ra and dec) coordinates for the center of the ellipse.
+        major : scalar or astropy.units.quantity.Quantity
+            Major axis of the ellipse (i.e., longest diameter)
+        minor : scalar or astropy.units.quantity.Quantity
+            Minor axis of the ellipse (i.e., shortest diameter)
+        pa : scalar or astropy.units.quantity.Quantity
+            If scalar, assumed to be given in degrees. The position angle of 
+            the major axis of the ellipse, measured from the positive x-axis
+            toward the positive y-axis. Defined in the range 0 < pa <= 180.
+        unit : astropy.unit.Unit or str
+            The unit in which all other arguments are specified. Usually u.pix
+            or u.deg.
+        frame : str, optional
+            The coordinate frame in which (ra, dec) coordinates are specified.
+            Default is 'icrs'.
+        name : str, optional
+            The name used in the catalog column names when photometry is 
+            performed with this aperture.
+    """
+
     def place(self, image, wcs=None):
+        """
+        Place the aperture on an image.
+        
+        Parameters
+        ----------
+        image : array
+            The image upon which to place the aperture.
+        wcs : astropy.wcs.wcs.WCS object, optional
+            The world coordinate system for the image, used for coordinate 
+            transformations.
+        
+        Returns
+        ----------
+        numpy.ndarray
+            A boolean mask for the aperture with the same dimensions as `image`
+        """
        return Aperture.place(self, image, wcs=wcs)
 
 
 class Annulus(Aperture):
 
     def __init__(self, center, inner, outer, unit=None, frame='icrs', name=None):
+    """    
+        Create an annular aperture, defined in either pixel (x, y) or sky 
+        (ra, dec) coordinates.
+        
+        Parameters
+        ----------
+        center : list or tuple, as scalar or astropy.units.quantity.Quantity
+            x and y (ra and dec) coordinates for the center of the ellipse.
+        inner : scalar or astropy.units.quantity.Quantity
+            Inner radius of the annulus.
+        outer : scalar or astropy.units.quantity.Quantity
+            Outer radius of the annulus.
+        unit : astropy.unit.Unit or str
+            The unit in which all other arguments are specified. Usually u.pix
+            or u.deg.
+        frame : str, optional
+            The coordinate frame in which (ra, dec) coordinates are specified.
+            Default is 'icrs'.
+        name : str, optional
+            The name used in the catalog column names when photometry is 
+            performed with this aperture.
+    """
         if unit is None:
             try:
                 unit = inner.unit
@@ -168,6 +233,22 @@ class Annulus(Aperture):
         self.outer = ucheck(outer, self.unit)
         
     def place(self, image, wcs=None):
+        """
+        Place the aperture on an image.
+        
+        Parameters
+        ----------
+        image : array
+            The image upon which to place the aperture.
+        wcs : astropy.wcs.wcs.WCS object, optional
+            The world coordinate system for the image, used for coordinate 
+            transformations.
+        
+        Returns
+        ----------
+        numpy.ndarray
+            A boolean mask for the aperture with the same dimensions as `image`
+        """
         return (self.aperture_outer.place(image, wcs=wcs)
                 ^ self.aperture_inner.place(image, wcs=wcs))
 
@@ -175,8 +256,44 @@ class Annulus(Aperture):
 class Circle(Aperture):
     
     def __init__(self, center, radius, unit=None, frame='icrs', name=None):
+        """    
+        Create a circular aperture, defined in either pixel (x, y) or sky 
+        (ra, dec) coordinates.
+        
+        Parameters
+        ----------
+        center : list or tuple, as scalar or astropy.units.quantity.Quantity
+            x and y (ra and dec) coordinates for the center of the ellipse.
+        radius : scalar or astropy.units.quantity.Quantity
+            Radius of the circle.
+        unit : astropy.unit.Unit or str
+            The unit in which all other arguments are specified. Usually u.pix
+            or u.deg.
+        frame : str, optional
+            The coordinate frame in which (ra, dec) coordinates are specified.
+            Default is 'icrs'.
+        name : str, optional
+            The name used in the catalog column names when photometry is 
+            performed with this aperture.
+    """
         Aperture.__init__(self, center, radius, radius, 0, unit=unit, name=name)
         self.radius = ucheck(radius, self.unit)
         
     def place(self, image, wcs=None):
+        """
+        Place the aperture on an image.
+        
+        Parameters
+        ----------
+        image : array
+            The image upon which to place the aperture.
+        wcs : astropy.wcs.wcs.WCS object, optional
+            The world coordinate system for the image, used for coordinate 
+            transformations.
+        
+        Returns
+        ----------
+        numpy.ndarray
+            A boolean mask for the aperture with the same dimensions as `image`
+        """
         return Aperture.place(self, image, wcs=wcs)

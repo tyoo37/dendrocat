@@ -42,22 +42,46 @@ def get_index_masked(table):
 
 
 def specindex(nu1, nu2, f1, alpha):
-    return f1*(nu2/nu1)**(alpha) 
+    """
+    Calculate some flux given two wavelengths, one flux, and the spectral
+    index.
+    """
+    return f1*(nu2/nu1)**(alpha)
     
 def findrow(idx, catalog):
+    """
+    Find a specific row of a catalog by '_idx' number.
+    """
     idx = int(idx)
     return catalog[np.where(catalog['_idx'] == idx)]
 
 def rms(x):
+    """
+    Calculate the root mean squared of some x.
+    """
     return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
     
 def load(infile):
+    """
+    Load a pickle file.
+    """
     filename = infile.split('.')[0]+'.pickle'
     with open(filename, 'rb') as f:
         return pickle.load(f)
 
 def ucheck(quantity, unit):
+    """
+    Check if a quantity already has units, and attempt conversion if so.
 
+    Parameters
+    ----------
+    quantity : scalar, array, or `~astropy.units.Unit`
+        The quantity to check for units. If scalar, units will assumed to be
+        the same as in the "unit" argument.
+    unit : `~astropy.units.Unit`
+        The unit to check against. If the "quantity" argument already has an
+        associated unit, a conversion will be attempted.
+    """
     if isinstance(quantity, Column):
         name = quantity.name
         if quantity.unit is None:

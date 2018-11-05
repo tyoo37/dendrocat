@@ -7,8 +7,6 @@ from astropy import coordinates
 from astropy.nddata.utils import Cutout2D, NoOverlapError
 from astropy.table import Column, Table, vstack
 from astrodendro import Dendrogram, pp_catalog
-import matplotlib.gridspec as gs
-import matplotlib.pyplot as plt
 import regions
 import pickle
 from copy import deepcopy
@@ -434,9 +432,11 @@ class RadioSource:
         data: array-like
             Image data for the sources in the catalog.
         cutouts:
-            For developer use
+            For debugging. Provides a specific set of cutouts instead of 
+            letting the function generate them.
         cutout_data:
-            For developer use
+            For debugging. Provides a specific set of cutout data instead of 
+            letting the function generate it.
         peak : bool, optional
             Use peak flux of source pixels as 'signal'. Default is True.
         save : bool, optional
@@ -519,6 +519,9 @@ class RadioSource:
         skip_rejects : bool, optional
             If enabled, don't plot rejected sources. Default is True.
         """
+
+        import matplotlib.gridspec as gs
+        import matplotlib.pyplot as plt
 
         if catalog is None:
             try:
@@ -729,6 +732,11 @@ class RadioSource:
     def dump(self, outfile):
         """
         Dump the `~dendrocat.RadioSource` object via pickle.
+
+        Parameters
+        ----------
+        outfile : str
+            Desired output file path.
         """
         outfile = outfile.split('.')[0]+'.pickle'
         with open(outfile, 'wb') as output:

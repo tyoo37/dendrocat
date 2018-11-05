@@ -224,14 +224,17 @@ def match(*args, verbose=True, threshold=0.036*u.arcsec):
             print('Combining matches')
             pb = ProgressBar(len(stack) - len(rejected))
 
-        for ii in range(len(stack)):
+        i = 0
+        while True:
 
-            if ii in rejected:
-                if verbose:
-                    pb.update()
+            if i >= len(stack) - 1:
+                break
+
+            if i in rejected:
+                i += 1
                 continue
 
-            teststar = stack[ii]
+            teststar = stack[i]
             delta_p = deepcopy(stack[stack['rejected']==0]['_idx', '_index', 'x_cen', 'y_cen'])
             delta_p.remove_rows(np.where(delta_p['_index']==teststar['_index'])[0])
             delta_p['x_cen'] = np.abs(delta_p['x_cen'] - teststar['x_cen'])
@@ -272,17 +275,18 @@ def match(*args, verbose=True, threshold=0.036*u.arcsec):
                                              )
 
                 # Replace properties of test star
-                stack[ii]['x_cen'] = new_x_cen
-                stack[ii]['y_cen'] = new_y_cen
-                stack[ii]['major_fwhm'] = new_maj.value
-                stack[ii]['minor_fwhm'] = new_min.value
-                stack[ii]['position_angle'] = new_pa.value
+                stack[i]['x_cen'] = new_x_cen
+                stack[i]['y_cen'] = new_y_cen
+                stack[i]['major_fwhm'] = new_maj.value
+                stack[i]['minor_fwhm'] = new_min.value
+                stack[i]['position_angle'] = new_pa.value
 
                 # Replace masked data with available values from the match
-                for k, masked in enumerate(stack.mask[ii]):
+                for k, masked in enumerate(stack.mask[i]):
                     colname = stack.colnames[k]
                     if masked:
-                        stack[ii][colname] = match[colname]
+                        stack[i][colname] = match[colname]
+            i += 1
             if verbose:
                 pb.update()
 

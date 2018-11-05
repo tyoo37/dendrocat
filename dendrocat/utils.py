@@ -246,7 +246,7 @@ def match(*args, verbose=True, threshold=0.036*u.arcsec):
             dist_col = MaskedColumn(length=len(delta_p), name='dist',
                                     mask=True)
 
-            for j in range(10):
+            for j in range(min(10, len(delta_p))):
                 dist_col[j] = np.sqrt(delta_p[j]['x_cen']**2.
                                       + delta_p[j]['y_cen']**2)
                 if dist_col[j] <= threshold:

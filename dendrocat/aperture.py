@@ -16,7 +16,7 @@ class Aperture():
     
     def __init__(self, center, major, minor, pa, unit=None, frame='icrs', 
                  name=None):
-        '''
+        """
         Create an elliptical aperture, defined in either pixel (x, y) or sky 
         (ra, dec) coordinates.
         
@@ -41,7 +41,7 @@ class Aperture():
         name : str, optional
             The name used in the catalog column names when photometry is 
             performed with this aperture.
-        '''
+        """
         
         if unit is None:
             try:
@@ -138,7 +138,7 @@ class Ellipse(Aperture):
     
     def __init__(self, center, major, minor, pa, unit=None, frame='icrs', name=None):
        Aperture.__init__(self, center, major, minor, pa, unit=unit, name=name)
-    """    
+        """    
         Create an elliptical aperture, defined in either pixel (x, y) or sky 
         (ra, dec) coordinates.
         
@@ -163,7 +163,7 @@ class Ellipse(Aperture):
         name : str, optional
             The name used in the catalog column names when photometry is 
             performed with this aperture.
-    """
+        """
 
     def place(self, image, wcs=None):
         """
@@ -188,7 +188,7 @@ class Ellipse(Aperture):
 class Annulus(Aperture):
 
     def __init__(self, center, inner, outer, unit=None, frame='icrs', name=None):
-    """    
+        """    
         Create an annular aperture, defined in either pixel (x, y) or sky 
         (ra, dec) coordinates.
         
@@ -209,7 +209,7 @@ class Annulus(Aperture):
         name : str, optional
             The name used in the catalog column names when photometry is 
             performed with this aperture.
-    """
+        """
         if unit is None:
             try:
                 unit = inner.unit
@@ -275,7 +275,7 @@ class Circle(Aperture):
         name : str, optional
             The name used in the catalog column names when photometry is 
             performed with this aperture.
-    """
+        """
         Aperture.__init__(self, center, radius, radius, 0, unit=unit, name=name)
         self.radius = ucheck(radius, self.unit)
         

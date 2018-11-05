@@ -115,9 +115,9 @@ class RadioSource:
     
     
     def set_metadata(self):
-    """
-    Sets RadioSource metadata using nu, WCS, and other FITS header data.
-    """
+        """
+        Sets RadioSource metadata using nu, WCS, and other FITS header data.
+        """
 
         self.metadata = {
             'data_unit': u.Unit(self.header['BUNIT']),

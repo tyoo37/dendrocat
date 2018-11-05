@@ -18,11 +18,11 @@ class MasterCatalog:
     """
     An object to store combined data from two or more RadioSource objects.
     """
-    
+
     def __init__(self, *args, catalog=None):
         """
         Create a new master catalog object.
-        
+
         Parameters
         ----------
         catalog : astropy.table.Table object
@@ -34,8 +34,8 @@ class MasterCatalog:
             self.catalog = catalog
             self.accepted = catalog[catalog['rejected']==0]
         self.add_objects(*args)
-       
-       
+
+
     def grab(self, name, skip_rejects=False):
         """
         Grab a source or sources by name.
@@ -52,9 +52,9 @@ class MasterCatalog:
 
         if skip_rejects:
             catalog = self.accepted
-        else: 
+        else:
             catalog = self.catalog
-            
+
         if type(name) == tuple or type(name) == list:
             name = np.array(name).astype(str)
             indices = []
@@ -65,8 +65,8 @@ class MasterCatalog:
             return catalog[indices]
         else:
             return self.catalog[self.catalog['_name']==str(name)]
-        
-        
+
+
     def add_objects(self, *args):
         """
         Add a new `~dendrocat.RadioSource` object to the existing master
@@ -85,12 +85,12 @@ class MasterCatalog:
             else:
                 objname = [k for k, v in locals().items() if v is obj][0]
                 self.__dict__[obj.__name__] = obj
-    
-    
+
+
     def add_sources(self, *args):
         """
         Add source entries from another catalog.
-        
+
         Parameters
         ----------
         *args : astropy.table.Table objects
@@ -99,46 +99,46 @@ class MasterCatalog:
         for sources in args:
             self.catalog = vstack([self.catalog, sources])
             self.catalog['_index'] = range(len(self.catalog))
-    
-    
+
+
     def photometer(self, *args, catalog=None):
         """
         Add photometry data columns to the master catalog.
-        
+
         Parameters
         ----------
         args : `~dendrocat.Aperture` objects
             The apertures to use for photometry. Can be given as either 
             instances or objects, to use fixed or variable aperture widths, 
             respectively.
-            
+
         catalog : astropy.table.Table object
             The catalog from which to extract source coordinates and ellipse
             parameters.
         """
-        
+
         for aperture in args:
             if catalog is None:
                 catalog = self.catalog
-            
+
             rs_objects = []
             for i, obj in enumerate(self.__dict__.values()):
                 if isinstance(obj, RadioSource):
                     rs_objects.append(obj)
-            
+
             for i, rs_obj in enumerate(rs_objects):
-                
+
                 data = rs_obj.data
-                cutouts, cutout_data = rs_obj._make_cutouts(catalog=catalog, 
+                cutouts, cutout_data = rs_obj._make_cutouts(catalog=catalog,
                                                             save=False)
-                                                                                        
+
                 pix_in_aperture = rs_obj.get_pixels(
                                                     aperture,
                                                     catalog=catalog,
                                                     data=data,
                                                     cutouts=cutouts,
                                                     )[0]
-                
+
                 names = [
                     rs_obj.freq_id+'_'+aperture.__name__+'_peak',
                     rs_obj.freq_id+'_'+aperture.__name__+'_sum',
@@ -146,35 +146,35 @@ class MasterCatalog:
                     rs_obj.freq_id+'_'+aperture.__name__+'_median',
                     rs_obj.freq_id+'_'+aperture.__name__+'_npix'
                 ]
-                
+
                 peak_data = np.zeros(len(pix_in_aperture))
                 for j in range(len(pix_in_aperture)):
                     peak_data[j] = np.max(pix_in_aperture[j])
                 aperture_peak_col = MaskedColumn(data=peak_data,
                                                  name=names[0])
-                
+
                 sum_data = np.zeros(len(pix_in_aperture))
                 for j in range(len(pix_in_aperture)):
                     ind = [pix_in_aperture[j] > 0.]
                     try:
                         sum_data[j] = np.sum(pix_in_aperture[j][ind])/rs_obj.ppbeam
                     except TypeError: # Catches single pixel apertures
-                        sum_data[j] = float('nan') 
+                        sum_data[j] = float('nan')
                 aperture_sum_col = MaskedColumn(data=sum_data,
-                                                name=names[1])                  
-                                                
+                                                name=names[1])
+
                 rms_data = np.zeros(len(pix_in_aperture))
                 for j in range(len(pix_in_aperture)):
-                    rms_data[j] = rms(pix_in_aperture[j])                           
+                    rms_data[j] = rms(pix_in_aperture[j])
                 aperture_rms_col = MaskedColumn(data=rms_data,
                                                 name=names[2])
-                
+
                 median_data = np.zeros(len(pix_in_aperture))
                 for j in range(len(pix_in_aperture)):
-                    median_data[j] = np.median(pix_in_aperture[j])                   
+                    median_data[j] = np.median(pix_in_aperture[j])
                 aperture_median_col = MaskedColumn(data=median_data,
                                                    name=names[3])
-                
+
                 npix_data = np.zeros(len(pix_in_aperture))
                 for j in range(len(pix_in_aperture)):
                     if np.isnan(pix_in_aperture[j]).any():
@@ -183,32 +183,32 @@ class MasterCatalog:
                         npix_data[j] = len(pix_in_aperture[j])
                     aperture_npix_col = MaskedColumn(data=npix_data,
                                                      name=names[4])
-                
+
                 try:
                     self.catalog.remove_columns(names)
                 except KeyError:
                     pass
-                    
+
                 self.catalog.add_columns([
                     aperture_peak_col,
                     aperture_sum_col,
                     aperture_rms_col,
                     aperture_median_col,
                     aperture_npix_col
-                ])  
-                
-                # Mask NaN values        
+                ])
+
+                # Mask NaN values
                 for col in self.catalog.colnames:
                     try:
                         isnan = np.argwhere(np.isnan(list(self.catalog[col])))
                         self.catalog.mask[col][isnan] = True
                     except TypeError:
                         pass
-            
-            
-    def ffplot(self, rsobj1, rsobj2, apertures=[], bkg_apertures=[], 
+
+
+    def ffplot(self, rsobj1, rsobj2, apertures=[], bkg_apertures=[],
                alphas=None, peak=False, label=False, log=True, outfile=None):
-        
+
         """
         Produce a flux-flux plot for two `~dendrocat.RadioSource` objects.
         
@@ -252,26 +252,26 @@ class MasterCatalog:
         if len(bkg_apertures) != len(apertures):
             raise ApertureError('Must give equal number of apertures and '
                                 'background apertures')
-        
+
         if rsobj1.nu > rsobj2.nu:
             rsobj1, rsobj2 = rsobj2, rsobj1
-        
+
         catalog = deepcopy(self.catalog)
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
         if alphas is None:
             alphas = [1, 2, 3]
-        
+
         cols = []
         for aperture in apertures:
-            
+
             if peak:
                 cols.append(rsobj1.freq_id+'_'+aperture.__name__+'_peak')
                 cols.append(rsobj2.freq_id+'_'+aperture.__name__+'_peak')
             else:
                 cols.append(rsobj1.freq_id+'_'+aperture.__name__+'_sum')
                 cols.append(rsobj2.freq_id+'_'+aperture.__name__+'_sum')
-        
+
         for bkg_aperture in bkg_apertures:
             cols.append(rsobj1.freq_id+'_'+bkg_aperture.__name__+'_rms')
             cols.append(rsobj2.freq_id+'_'+bkg_aperture.__name__+'_rms')
@@ -287,61 +287,61 @@ class MasterCatalog:
             index = list(set(range(len(catalog)))^
                          set(np.nonzero(catalog.mask[cols])[0])
                          .union(set(np.where(catalog['rejected']==1)[0])))
-            
+
         catalog = catalog[index]
-        
+
         flux1 = []
         flux2 = []
         err1 = []
         err2 = []
-        
+
         for aperture in apertures:
-        
+
             if peak:
-                flux1.append(catalog['{}_{}_peak'.format(rsobj1.freq_id, 
+                flux1.append(catalog['{}_{}_peak'.format(rsobj1.freq_id,
                                                          aperture.__name__)])
-                flux2.append(catalog['{}_{}_peak'.format(rsobj2.freq_id, 
+                flux2.append(catalog['{}_{}_peak'.format(rsobj2.freq_id,
                                                          aperture.__name__)])
             else:
-                flux1.append(catalog['{}_{}_sum'.format(rsobj1.freq_id, 
+                flux1.append(catalog['{}_{}_sum'.format(rsobj1.freq_id,
                                                          aperture.__name__)])
-                flux2.append(catalog['{}_{}_sum'.format(rsobj2.freq_id, 
+                flux2.append(catalog['{}_{}_sum'.format(rsobj2.freq_id,
                                                          aperture.__name__)])
 
         for bkg_aperture in bkg_apertures:
             err1.append(catalog[rsobj1.freq_id+bkg_aperture.__name__+'_rms'])
             err2.append(catalog[rsobj2.freq_id+bkg_aperture.__name__+'_rms'])
-        
+
         marker_labels = catalog['_name']
-        
+
         xflux = np.linspace(np.min(flux1), np.max(flux1), 10)
         yfluxes = []
-        
+
         for alpha in alphas:
             yfluxes.append(specindex(rsobj1.nu, rsobj2.nu, xflux, alpha))
-        
+
         n_images = len(apertures)
         xplots = int(np.around(np.sqrt(n_images)))
         yplots = xplots
         fig, axes = plt.subplots(ncols=yplots, nrows=xplots, figsize=(12, 12))
-        
-        for i in range(len(apertures)-1):    
+
+        for i in range(len(apertures)-1):
             ax = np.ndarray.flatten(np.array(axes))[i]
-            ax.errorbar(flux1[i], flux2[i], xerr=err1[i], yerr=err2[i], ms=2, 
+            ax.errorbar(flux1[i], flux2[i], xerr=err1[i], yerr=err2[i], ms=2,
                         alpha=0.75, elinewidth=0.5, color=colors[i], fmt='o',
                         label='{} Aperture Sums'.format(apertures[i].__name__))
-                        
+
             for j, yflux in enumerate(yfluxes):
-                ax.plot(xflux, yflux, '--', color=colors[np.negative(j)], 
+                ax.plot(xflux, yflux, '--', color=colors[np.negative(j)],
                         label='Spectral Index = {}'.format(alphas[j]))
-            
+
             ax.set_xticks([])
             ax.set_yticks([])
-            
+
             if label:
                 for j, label in enumerate(marker_labels):
-                    ax.annotate(label, 
-                                (flux1[i][j], flux2[i][j]), 
+                    ax.annotate(label,
+                                (flux1[i][j], flux2[i][j]),
                                 size=8)
             if peak:
                 if log:
@@ -361,9 +361,9 @@ class MasterCatalog:
                 else:
                     plt.xlabel('Flux {}'.format(rsobj1.freq_id))
                     plt.ylabel('Flux {}'.format(rsobj2.freq_id))
-            plt.suptitle('{} Flux v. {} Flux'.format(rsobj2.freq_id, 
+            plt.suptitle('{} Flux v. {} Flux'.format(rsobj2.freq_id,
                                                      rsobj1.freq_id))
             plt.legend()
-            
+
             if outfile is not None:
                 plt.savefig(outfile, dpi=300, bbox_inches='tight')

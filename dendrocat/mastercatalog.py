@@ -149,7 +149,10 @@ class MasterCatalog:
 
                 peak_data = np.zeros(len(pix_in_aperture))
                 for j in range(len(pix_in_aperture)):
-                    peak_data[j] = np.max(pix_in_aperture[j])
+                    try:
+                        peak_data[j] = np.max(pix_in_aperture[j])
+                    except ValueError:
+                        peak_data[j] = float('nan')
                 aperture_peak_col = MaskedColumn(data=peak_data,
                                                  name=names[0])
 

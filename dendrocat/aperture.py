@@ -182,7 +182,7 @@ class Ellipse(Aperture):
         numpy.ndarray
             A boolean mask for the aperture with the same dimensions as `image`
         """
-       return Aperture.place(self, image, wcs=wcs)
+        return Aperture.place(self, image, wcs=wcs)
 
 
 class Annulus(Aperture):

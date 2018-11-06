@@ -68,8 +68,8 @@ class Aperture():
 
     def _refresh_xycen(self):
         if type(self.center) == SkyCoord:
-            self.x_cen = ucheck(self.center._sky_coord_frame._data._lon.value, self.unit)
-            self.y_cen = ucheck(self.center._sky_coord_frame._data._lat.value, self.unit)
+            self.x_cen = ucheck(self.center.spherical.lon, self.unit)
+            self.y_cen = ucheck(self.center.spherical.lat, self.unit)
 
         elif type(self.center) == regions.PixCoord:
             self.x_cen = ucheck(self.center.x, self.unit)
@@ -100,7 +100,7 @@ class Aperture():
         self._refresh_xycen()
         if self.unit.is_equivalent(u.deg) and wcs is not None:
             pixel_scale = (np.abs(wcs.pixel_scale_matrix.diagonal()
-                                      .prod())**0.5 * u.deg/u.pix)
+                                  .prod())**0.5 * u.deg/u.pix)
             center = np.array(SkyCoord(self.x_cen.to(u.deg),
                                        self.y_cen.to(u.deg),
                                        frame=self.frame,

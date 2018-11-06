@@ -16,7 +16,7 @@ class Aperture():
 
     def __init__(self, center, major, minor, pa, unit=None, frame='icrs',
                  name=None):
-        '''
+        """
         Create an elliptical aperture, defined in either pixel (x, y) or sky
         (ra, dec) coordinates.
 
@@ -41,7 +41,7 @@ class Aperture():
         name : str, optional
             The name used in the catalog column names when photometry is
             performed with this aperture.
-        '''
+        """
 
         if unit is None:
             try:
@@ -137,8 +137,7 @@ class Aperture():
 class Ellipse(Aperture):
 
     def __init__(self, center, major, minor, pa, unit=None, frame='icrs', name=None):
-       Aperture.__init__(self, center, major, minor, pa, unit=unit, name=name)
-    """
+        """
         Create an elliptical aperture, defined in either pixel (x, y) or sky
         (ra, dec) coordinates.
 
@@ -163,7 +162,8 @@ class Ellipse(Aperture):
         name : str, optional
             The name used in the catalog column names when photometry is
             performed with this aperture.
-    """
+        """
+        Aperture.__init__(self, center, major, minor, pa, unit=unit, name=name)
 
     def place(self, image, wcs=None):
         """
@@ -174,8 +174,8 @@ class Ellipse(Aperture):
         image : array
            The image upon which to place the aperture.
         wcs : astropy.wcs.wcs.WCS object, optional
-           The world coordinate system for the image, used for coordinate
-           transformations.
+            The world coordinate system for the image, used for coordinate
+            transformations.
 
         Returns
         ----------
@@ -275,7 +275,7 @@ class Circle(Aperture):
         name : str, optional
             The name used in the catalog column names when photometry is
             performed with this aperture.
-    """
+        """
         Aperture.__init__(self, center, radius, radius, 0, unit=unit, name=name)
         self.radius = ucheck(radius, self.unit)
 

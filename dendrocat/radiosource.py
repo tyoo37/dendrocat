@@ -497,8 +497,9 @@ class RadioSource:
         return np.array(snr_vals)
 
 
-    def plot_grid(self, catalog=None, data=None, cutouts=None, cutout_data=None,
-                  source_aperture=None, bkg_aperture=None, skip_rejects=True, outfile=None):
+    def plot_grid(self, catalog=None, data=None, cutouts=None,
+                  cutout_data=None, source_aperture=None, bkg_aperture=None,
+                  skip_rejects=True, outfile=None, figurekwargs={}):
         """
         Plot sources in a grid.
 
@@ -596,7 +597,7 @@ class RadioSource:
         xplots = int(np.around(np.sqrt(n_images)))
         yplots = xplots + 1
         gs1 = gs.GridSpec(yplots, xplots, wspace=0.0, hspace=0.0)
-        plt.figure(figsize=(9.5, 10))
+        plt.figure(figsize=(9.5, 10), **figurekwargs)
 
         for i in range(n_images):
 

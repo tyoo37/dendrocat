@@ -177,7 +177,8 @@ class RadioSource:
 
     def to_catalog(self, dendrogram=None):
         """
-        Creates a position-position catalog of leaves in a dendrogram.
+        Creates a new position-position catalog of leaves in a dendrogram.
+        This task will overwrite the existing catalog if there is one.
 
         Parameters
         ----------

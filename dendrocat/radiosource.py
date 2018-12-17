@@ -214,16 +214,15 @@ class RadioSource:
         except KeyError:
             pass
 
-        #This is just wrong, no?  It completely removes the 'rejected' columns
-        # try:
-        #     cat.remove_column('rejected')
-        #     cat.remove_column(self.freq_id+'_detected')
-        # except KeyError:
-        #     pass
+        try:
+            cat.remove_column('rejected')
+            cat.remove_column(self.freq_id+'_detected')
+        except KeyError:
+            pass
 
-        # cat.add_column(Column(np.zeros(len(cat)), dtype=int), name='rejected')
-        # cat.add_column(Column(np.ones(len(cat)), dtype=int),
-        #                name=self.freq_id+'_detected')
+        cat.add_column(Column(np.zeros(len(cat)), dtype=int), name='rejected')
+        cat.add_column(Column(np.ones(len(cat)), dtype=int),
+                       name=self.freq_id+'_detected')
 
         self.catalog = Table(cat, masked=True)
         return Table(cat, masked=True)

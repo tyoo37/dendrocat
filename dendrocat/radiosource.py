@@ -451,10 +451,10 @@ class RadioSource:
         """
 
         if catalog is None:
-                try:
-                    catalog = self.catalog
-                except AttributeError:
-                    catalog = self.to_catalog()
+            try:
+                catalog = self.catalog
+            except AttributeError:
+                catalog = self.to_catalog()
 
         # Cascade check
         if source is None or background is None:
@@ -463,9 +463,9 @@ class RadioSource:
                 data = self.data
 
             if cutouts is None or cutout_data is None:
-                size = 2.2*(np.max(catalog['major_fwhm'])*u.deg
-                                    + self.annulus_padding
-                                    + self.annulus_width)
+                #size = 2.2*(np.max(catalog['major_fwhm'])*u.deg
+                #            + self.annulus_padding
+                #            + self.annulus_width)
                 cutouts, cutout_data = self._make_cutouts(catalog=catalog,
                                                           data=data)
 

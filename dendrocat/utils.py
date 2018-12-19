@@ -5,6 +5,7 @@ import astropy.units as u
 from astropy.table import MaskedColumn, Column, vstack
 from astropy.coordinates import SkyCoord
 from astropy.utils.console import ProgressBar
+from astropy.stats import mad_std
 from copy import deepcopy
 import warnings
 import regions
@@ -55,11 +56,14 @@ def findrow(idx, catalog):
     idx = int(idx)
     return catalog[np.where(catalog['_idx'] == idx)]
 
-def rms(x):
+def rms(x, mean_abs_dev=False):
     """
     Calculate the root mean squared of some x.
     """
-    return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
+    if mean_abs_dev:
+        return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
+    else:
+        return mad_std(x)
 
 def load(infile):
     """

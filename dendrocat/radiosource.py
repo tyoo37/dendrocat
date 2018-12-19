@@ -177,7 +177,8 @@ class RadioSource:
 
     def to_catalog(self, dendrogram=None):
         """
-        Creates a position-position catalog of leaves in a dendrogram.
+        Creates a new position-position catalog of leaves in a dendrogram.
+        This task will overwrite the existing catalog if there is one.
 
         Parameters
         ----------
@@ -450,10 +451,10 @@ class RadioSource:
         """
 
         if catalog is None:
-                try:
-                    catalog = self.catalog
-                except AttributeError:
-                    catalog = self.to_catalog()
+            try:
+                catalog = self.catalog
+            except AttributeError:
+                catalog = self.to_catalog()
 
         # Cascade check
         if source is None or background is None:
@@ -462,9 +463,9 @@ class RadioSource:
                 data = self.data
 
             if cutouts is None or cutout_data is None:
-                size = 2.2*(np.max(catalog['major_fwhm'])*u.deg
-                                    + self.annulus_padding
-                                    + self.annulus_width)
+                #size = 2.2*(np.max(catalog['major_fwhm'])*u.deg
+                #            + self.annulus_padding
+                #            + self.annulus_width)
                 cutouts, cutout_data = self._make_cutouts(catalog=catalog,
                                                           data=data)
 
@@ -497,8 +498,9 @@ class RadioSource:
         return np.array(snr_vals)
 
 
-    def plot_grid(self, catalog=None, data=None, cutouts=None, cutout_data=None,
-                  source_aperture=None, bkg_aperture=None, skip_rejects=True, outfile=None):
+    def plot_grid(self, catalog=None, data=None, cutouts=None,
+                  cutout_data=None, source_aperture=None, bkg_aperture=None,
+                  skip_rejects=True, outfile=None, figurekwargs={}):
         """
         Plot sources in a grid.
 
@@ -596,7 +598,7 @@ class RadioSource:
         xplots = int(np.around(np.sqrt(n_images)))
         yplots = xplots + 1
         gs1 = gs.GridSpec(yplots, xplots, wspace=0.0, hspace=0.0)
-        plt.figure(figsize=(9.5, 10))
+        plt.figure(figsize=(9.5, 10), **figurekwargs)
 
         for i in range(n_images):
 

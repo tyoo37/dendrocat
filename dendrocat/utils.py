@@ -1,11 +1,11 @@
 import numpy as np
 from radio_beam import Beams
+from radio_beam.utils import BeamError
 import astropy.units as u
-from astropy.table import MaskedColumn, Column, vstack, Table
+from astropy.table import MaskedColumn, Column, vstack
 from astropy.coordinates import SkyCoord
 from astropy.utils.console import ProgressBar
-import matplotlib.pyplot as plt
-from collections import OrderedDict
+from astropy.stats import mad_std
 from copy import deepcopy
 import warnings
 import regions
@@ -56,16 +56,20 @@ def findrow(idx, catalog):
     idx = int(idx)
     return catalog[np.where(catalog['_idx'] == idx)]
 
-def rms(x):
+def rms(x, mean_abs_dev=False):
     """
     Calculate the root mean squared of some x.
     """
-    return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
+    if mean_abs_dev:
+        return (np.absolute(np.mean(x**2) - (np.mean(x))**2))**0.5
+    else:
+        return mad_std(x)
 
 def load(infile):
     """
     Load a pickle file.
     """
+    import pickle
     filename = infile.split('.')[0]+'.pickle'
     with open(filename, 'rb') as f:
         return pickle.load(f)
@@ -168,7 +172,13 @@ def commonbeam(major1, minor1, pa1, major2, minor2, pa2):
                       [minor1.to(u.arcsec), minor2.to(u.arcsec)]*u.arcsec,
                       [pa1, pa2]*u.deg)
 
-    common = somebeams.common_beam()
+    for tolerance in (1e-4, 5e-5, 1e-5, 1e-6, 1e-7):
+        try:
+            common = somebeams.common_beam(tolerance=tolerance)
+            break
+        except BeamError:
+            continue
+
     new_major = common._major
     new_minor = common._minor
     new_pa = common._pa
@@ -272,8 +282,8 @@ def match(*args, verbose=True, threshold=0.036*u.arcsec):
                                     mask=True)
 
             for j in range(min(10, len(delta_p))):
-                dist_col[j] = np.sqrt(delta_p[j]['x_cen']**2.
-                                      + delta_p[j]['y_cen']**2)
+                dist_col[j] = np.sqrt(delta_p[j]['x_cen']**2. +
+                                      delta_p[j]['y_cen']**2)
                 if dist_col[j] <= threshold:
                     found_match = True
 
@@ -323,4 +333,3 @@ def match(*args, verbose=True, threshold=0.036*u.arcsec):
         stack['_index'] = range(len(stack))
         current_arg = MasterCatalog(arg1, arg2, catalog=stack)
     return current_arg
-

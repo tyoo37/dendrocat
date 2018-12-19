@@ -229,8 +229,35 @@ class Annulus(Aperture):
         self.center = ucheck(center, self.unit)
         self.x_cen = ucheck(center[0], self.unit)
         self.y_cen = ucheck(center[1], self.unit)
-        self.inner = ucheck(inner, self.unit)
-        self.outer = ucheck(outer, self.unit)
+
+    @property
+    def inner(self):
+        return self.aperture_inner.radius
+
+    @inner.setter
+    def inner(self, value):
+        self.aperture_inner.radius = value
+
+    @property
+    def outer(self):
+        return self.aperture_outer.radius
+
+    @outer.setter
+    def outer(self, value):
+        self.aperture_outer.radius = value
+
+    @property
+    def center(self):
+        return self._center
+
+    @center.setter
+    def center(self, value):
+        """
+        Need to sset both of the child aperture centers too
+        """
+        self._center = value
+        self.aperture_inner.center = value
+        self.aperture_outer.center = value
 
     def place(self, image, wcs=None):
         """

@@ -43,9 +43,9 @@ class MasterCatalog:
         Parameters
         ----------
         name : str or list
-            String or list of strings to search the catalog "_name" header for.       
+            String or list of strings to search the catalog "_name" header for.
         skip_rejects : bool, optional
-            If enabled, rejected sources will not be queried. Disabled by 
+            If enabled, rejected sources will not be queried. Disabled by
             default.
         """
 
@@ -71,12 +71,15 @@ class MasterCatalog:
         """
         Add a new `~dendrocat.RadioSource` object to the existing master
         catalog.
-        
+
         Parameters
         ----------
         *args : '~dendrocat.RadioSource` objects
             RadioSource objects to add to the master catalog.
         """
+        if not hasattr(self, 'other_catalogs'):
+            self.other_catalogs = []
+
         for obj in args:
             if isinstance(obj, MasterCatalog):
                 for key, value in obj.__dict__.items():
@@ -84,7 +87,8 @@ class MasterCatalog:
                         self.__dict__[key] = value
             else:
                 objname = [k for k, v in locals().items() if v is obj][0]
-                self.__dict__[obj.__name__] = obj
+                self.other_catalogs.append(obj)
+                setattr(self, objname, obj)
 
 
     def add_sources(self, *args):
@@ -108,8 +112,8 @@ class MasterCatalog:
         Parameters
         ----------
         args : `~dendrocat.Aperture` objects
-            The apertures to use for photometry. Can be given as either 
-            instances or objects, to use fixed or variable aperture widths, 
+            The apertures to use for photometry. Can be given as either
+            instances or objects, to use fixed or variable aperture widths,
             respectively.
 
         catalog : astropy.table.Table object
@@ -214,31 +218,31 @@ class MasterCatalog:
 
         """
         Produce a flux-flux plot for two `~dendrocat.RadioSource` objects.
-        
+
         Parameters
         ----------
         rsobj1 : `~dendrocat.RadioSource` object
-            One of two radio source objects from which to make a flux-flux 
+            One of two radio source objects from which to make a flux-flux
             plot.
         rsobj2 : `~dendrocat.RadioSource` object
-            The other of two radio source objects from which to make a 
+            The other of two radio source objects from which to make a
             flux-flux plot.
         apertures : list
             List of `~dendrocat.Aperture` objects to use for source apertures.
         bkg_apertures : list
-            List of `~dendrocat.Aperture` objects to use for background 
+            List of `~dendrocat.Aperture` objects to use for background
             apertures.
         alphas : list, optional
-            Spectral indices to overplot on top of the flux-flux data. 1, 2, 
+            Spectral indices to overplot on top of the flux-flux data. 1, 2,
             and 3 will be used by default.
         peak : bool, optional
-            If enabled, peak flux inside the aperture is used instead of 
+            If enabled, peak flux inside the aperture is used instead of
             aperture sum. Disabled by default.
         label : bool, optional
             If enabled, labels will be printed on the plot to identify sources.
             Disabled by default.
         log : bool, optional
-            If enabled, results will be shown on log-log axes. Enabled by 
+            If enabled, results will be shown on log-log axes. Enabled by
             default.
         outfile : str, optional
             If provided, output plot will be saved to this file path.

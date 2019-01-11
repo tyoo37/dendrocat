@@ -284,10 +284,11 @@ class RadioSource:
 
             position = coordinates.SkyCoord(x_cen,
                                             y_cen,
-                                            frame='icrs',
+                                            frame=wcs.utils.wcs_to_celestial_frame(self.wcs).name,
                                             unit=(u.deg, u.deg))
 
-            pixel_position = np.array(position.to_pixel(self.wcs))
+            # commented out b/c not used
+            # pixel_position = np.array(position.to_pixel(self.wcs))
 
             try:
                 cutout = Cutout2D(data,

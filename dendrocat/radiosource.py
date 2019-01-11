@@ -375,9 +375,11 @@ class RadioSource:
                 # replace the center value with the centers from the sources.
 
                 if aperture.unit.is_equivalent(u.deg):
-                    aperture.center = coordinates.SkyCoord(x_cen*u.deg, y_cen*u.deg)
+                    aperture.center = coordinates.SkyCoord(x_cen*u.deg, y_cen*u.deg,
+                                                           frame=wcs.utils.wcs_to_celestial_frame(cutouts[i].wcs).name)
                 elif aperture.unit.is_equivalent(u.pix):
-                    sky = coordinates.SkyCoord(x_cen*u.deg, y_cen*u.deg)
+                    sky = coordinates.SkyCoord(x_cen*u.deg, y_cen*u.deg,
+                                               frame=wcs.utils.wcs_to_celestial_frame(cutouts[i].wcs).name)
                     pixel = ucheck(sky.to_pixel(cutouts[i].wcs), u.pix)
                     aperture.center = pixel
                     aperture.x_cen, aperture.y_cen = pixel[0], pixel[1]
@@ -552,10 +554,8 @@ class RadioSource:
         masks = []
 
         for aperture in [source_aperture, bkg_aperture]:
-            some_pixels, a_mask = self.get_pixels(aperture,
-                                                  catalog=catalog,
-                                                  data=data,
-                                                  cutouts=cutouts)
+            some_pixels, a_mask = self.get_pixels(aperture, catalog=catalog,
+                                                  data=data, cutouts=cutouts)
             ap_names.append(aperture.__name__)
             pixels.append(some_pixels)
             masks.append(a_mask)
@@ -583,8 +583,9 @@ class RadioSource:
         an = np.ones(len(cutouts), dtype='bool')
         for i in range(len(cutouts)):
             try:
+                # check whether cutouts[i] is a cutout or is NaN
                 np.isnan(cutouts[i])
-                an[i] = 0
+                an[i] = False
             except TypeError:
                 pass
 

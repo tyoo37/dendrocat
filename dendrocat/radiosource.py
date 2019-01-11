@@ -363,6 +363,8 @@ class RadioSource:
                 masks.append(float('nan'))
                 continue
 
+            frame = wcs.utils.wcs_to_celestial_frame(cutouts[i].wcs).name
+
             x_cen = catalog['x_cen'][i]
             y_cen = catalog['y_cen'][i]
             major = catalog['major_fwhm'][i]
@@ -375,11 +377,12 @@ class RadioSource:
                 # replace the center value with the centers from the sources.
 
                 if aperture.unit.is_equivalent(u.deg):
-                    aperture.center = coordinates.SkyCoord(x_cen*u.deg, y_cen*u.deg,
-                                                           frame=wcs.utils.wcs_to_celestial_frame(cutouts[i].wcs).name)
+                    aperture.center = coordinates.SkyCoord(x_cen*u.deg,
+                                                           y_cen*u.deg,
+                                                           frame=frame)
                 elif aperture.unit.is_equivalent(u.pix):
                     sky = coordinates.SkyCoord(x_cen*u.deg, y_cen*u.deg,
-                                               frame=wcs.utils.wcs_to_celestial_frame(cutouts[i].wcs).name)
+                                               frame=frame)
                     pixel = ucheck(sky.to_pixel(cutouts[i].wcs), u.pix)
                     aperture.center = pixel
                     aperture.x_cen, aperture.y_cen = pixel[0], pixel[1]
@@ -391,16 +394,17 @@ class RadioSource:
                 # DEFAULTS FOR VARIABLE APERTURES STORED HERE
                 cen = [x_cen, y_cen]
                 if aperture == Ellipse:
-                    aperture = Ellipse(cen, major, minor, pa, unit=u.deg)
+                    aperture = Ellipse(cen, major, minor, pa, unit=u.deg,
+                                       frame=frame)
 
                 elif aperture == Annulus:
                     inner_r = major*u.deg+self.annulus_padding
                     outer_r = major*u.deg+self.annulus_padding+self.annulus_width
-                    aperture = Annulus(cen, inner_r, outer_r, unit=u.deg)
+                    aperture = Annulus(cen, inner_r, outer_r, unit=u.deg, frame=frame)
 
                 elif aperture == Circle:
                     radius = major
-                    aperture = Circle(cen, radius, unit=u.deg)
+                    aperture = Circle(cen, radius, unit=u.deg, frame=frame)
 
                 else:
                     raise UnknownApertureError('Aperture not recognized. Pass'
@@ -408,6 +412,8 @@ class RadioSource:
                                                'ture instead.')
 
             this_mask = aperture.place(cutouts[i].data, wcs=cutouts[i].wcs)
+            if this_mask.sum() == 0:
+                raise ValueError("No pixels within aperture")
             pix_arrays.append(cutouts[i].data[this_mask])
             masks.append(this_mask)
             aperture = aperture_original # reset the aperture for the next source

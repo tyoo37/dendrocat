@@ -67,7 +67,8 @@ class Aperture():
         self.pa = ucheck(pa, u.deg)
         self.frame = frame
 
-        assert self.center.frame.name == self.frame
+        if hasattr(self.center, 'frame'):
+            assert self.center.frame.name == self.frame
 
     def _refresh_xycen(self):
         if type(self.center) == SkyCoord:
@@ -237,7 +238,8 @@ class Annulus(Aperture):
         self.y_cen = ucheck(center[1], self.unit)
         self.frame = frame
 
-        assert self.center.frame.name == self.frame
+        if hasattr(self.center, 'frame'):
+            assert self.center.frame.name == self.frame
 
     @property
     def inner(self):

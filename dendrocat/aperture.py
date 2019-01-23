@@ -1,6 +1,7 @@
 import regions
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+import astropy.wcs
 import numpy as np
 import warnings
 
@@ -66,6 +67,9 @@ class Aperture():
         self.pa = ucheck(pa, u.deg)
         self.frame = frame
 
+        if hasattr(self.center, 'frame'):
+            assert self.center.frame.name == self.frame
+
     def _refresh_xycen(self):
         if type(self.center) == SkyCoord:
             self.x_cen = ucheck(self.center.spherical.lon, self.unit)
@@ -97,6 +101,8 @@ class Aperture():
         numpy.ndarray
             A boolean mask for the aperture with the same dimensions as `image`
         """
+        if wcs is not None and self.frame != astropy.wcs.utils.wcs_to_celestial_frame(wcs).name:
+            raise ValueError("Frame mismatch in aperture placement")
         self._refresh_xycen()
         if self.unit.is_equivalent(u.deg) and wcs is not None:
             pixel_scale = (np.abs(wcs.pixel_scale_matrix.diagonal()
@@ -163,7 +169,8 @@ class Ellipse(Aperture):
             The name used in the catalog column names when photometry is
             performed with this aperture.
         """
-        Aperture.__init__(self, center, major, minor, pa, unit=unit, name=name)
+        Aperture.__init__(self, center, major, minor, pa, unit=unit, name=name,
+                          frame=frame)
 
     def place(self, image, wcs=None):
         """
@@ -224,11 +231,15 @@ class Annulus(Aperture):
         if name is not None:
             self.__name__ = name
 
-        self.aperture_inner = Aperture(center, inner, inner, 0, unit=unit)
-        self.aperture_outer = Aperture(center, outer, outer, 0, unit=unit)
+        self.aperture_inner = Aperture(center, inner, inner, 0, unit=unit, frame=frame)
+        self.aperture_outer = Aperture(center, outer, outer, 0, unit=unit, frame=frame)
         self.center = ucheck(center, self.unit)
         self.x_cen = ucheck(center[0], self.unit)
         self.y_cen = ucheck(center[1], self.unit)
+        self.frame = frame
+
+        if hasattr(self.center, 'frame'):
+            assert self.center.frame.name == self.frame
 
     @property
     def inner(self):
@@ -303,7 +314,8 @@ class Circle(Aperture):
             The name used in the catalog column names when photometry is
             performed with this aperture.
         """
-        Aperture.__init__(self, center, radius, radius, 0, unit=unit, name=name)
+        Aperture.__init__(self, center, radius, radius, 0, unit=unit,
+                          name=name, frame=frame)
         self.radius = ucheck(radius, self.unit)
 
     def place(self, image, wcs=None):

@@ -197,8 +197,10 @@ class RadioSource:
                 dendrogram = self.to_dendrogram()
 
         cat = pp_catalog(dendrogram.leaves, self.metadata)
-        cat.add_column(Column(length=len(cat), shape=20, dtype=str),
-                       name='_name')
+        strarr=[]
+        for idx in cat['_idx']:
+            strarr.append(str('{:.0f}{:04d}'.format(np.round(self.nu.to(u.GHz).value), idx)))  
+        cat.add_column(Column(data=strarr),name='_name') 
         cat.add_column(Column(data=range(len(cat))), name='_index')
         cat = cat[sorted(cat.colnames)]
 

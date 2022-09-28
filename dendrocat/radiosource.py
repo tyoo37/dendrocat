@@ -204,10 +204,6 @@ class RadioSource:
         cat.add_column(Column(data=range(len(cat))), name='_index')
         cat = cat[sorted(cat.colnames)]
 
-        for i, idx in enumerate(cat['_idx']):
-            cat['_name'][i] = str('{:.0f}{:03d}'.format(
-                                       np.round(self.nu.to(u.GHz).value), idx))
-
         try:
             cat['major_sigma'] = cat['major_sigma']*np.sqrt(8*np.log(2))
             cat['minor_sigma'] = cat['minor_sigma']*np.sqrt(8*np.log(2))

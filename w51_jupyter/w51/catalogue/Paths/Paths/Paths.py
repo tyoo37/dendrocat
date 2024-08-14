@@ -64,4 +64,6 @@ class filepaths():
         self.w51n_b3_cont_local = self.localdir + '/b3data/w51n.spw0thru19.14500.robust0.thr0.075mJy.mfs.I.startmod.selfcal7.image.tt0.pbcor.fits'
             
 
+        self.w51e_dendro_matched_catalog_local = '/Users/dbahck37/w51_jupyter/w51/catalogue/dendrogram/dendro_w51e_matched.fits'
+        self.w51n_dendro_matched_catalog_local = '/Users/dbahck37/w51_jupyter/w51/catalogue/dendrogram/dendro_w51n_matched.fits'
 

@@ -62,7 +62,8 @@ class filepaths():
         self.w51n_b6_cont_local = self.localdir + '/w51n.spw0thru19.14500.robust0.thr0.1mJy.mfs.I.startmod.selfcal7.image.tt0.pbcor.fits'
         self.w51e_b3_cont_local = self.localdir + '/b3data/w51e2.spw0thru19.14500.robust0.thr0.075mJy.mfs.I.startmod.selfcal7.image.tt0.pbcor.fits'
         self.w51n_b3_cont_local = self.localdir + '/b3data/w51n.spw0thru19.14500.robust0.thr0.075mJy.mfs.I.startmod.selfcal7.image.tt0.pbcor.fits'
-            
+        self.w51e_b6_conv_local = self.localdir + '/convolved_new/w51e_new_B6_conv.fits'
+        self.w51n_b6_conv_local = self.localdir + '/convolved_new/w51n_new_B6_conv.fits'    
 
         self.w51e_dendro_matched_catalog_local = '/Users/dbahck37/w51_jupyter/w51/catalogue/dendrogram/dendro_w51e_matched.fits'
         self.w51n_dendro_matched_catalog_local = '/Users/dbahck37/w51_jupyter/w51/catalogue/dendrogram/dendro_w51n_matched.fits'
